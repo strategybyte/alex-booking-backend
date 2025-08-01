@@ -1,101 +1,53 @@
-// import prisma from '../../utils/prisma';
-// import { Gender } from '@prisma/client';
+import prisma from '../../utils/prisma';
 
-// interface Client {
-//   first_name: string;
-//   last_name: string;
-//   email: string;
-//   phone: string;
-//   date_of_birth: Date;
-//   gender: Gender;
-// }
+const GetCounselorClientsById = async (counselor_id: string) => {
+  const clients = await prisma.client.findMany({
+    where: {
+      appointments: {
+        every: {
+          counselor_id,
+        },
+      },
+    },
 
-// const CreateClientOrVerify = async (client: Client) => {
-//   const data = {
-//     first_name: client.first_name,
-//     last_name: client.last_name,
-//     email: client.email,
-//     phone: client.phone,
-//     date_of_birth: client.date_of_birth,
-//     gender: client.gender,
-//   };
+    select: {
+      first_name: true,
+      last_name: true,
+      email: true,
+      gender: true,
+      date_of_birth: true,
+      phone: true,
+      id: true,
+      created_at: true,
+      _count: {
+        select: {
+          appointments: true,
+        },
+      },
+    },
 
-//   const existingClient = await prisma.client.findUnique({
-//     where: { email: client.email },
-//   });
+    orderBy: {
+      created_at: 'asc',
+    },
+  });
 
-//   if (existingClient) {
-//     return {
-//       id: existingClient.id,
-//       first_name: existingClient.first_name,
-//       last_name: existingClient.last_name,
-//       email: existingClient.email,
-//       phone: existingClient.phone,
-//       date_of_birth: existingClient.date_of_birth,
-//       gender: existingClient.gender,
-//       is_verified: existingClient.is_verified,
-//       isExisting: true,
-//     };
-//   }
+  const formattedClients = clients.map((client) => ({
+    id: client.id,
+    firstName: client.first_name,
+    lastName: client.last_name,
+    email: client.email,
+    phone: client.phone,
+    gender: client.gender,
+    totalAppointments: client._count.appointments,
+    dateOfBirth: client.date_of_birth,
+    createdAt: client.created_at,
+  }));
 
-//   const newClient = await prisma.client.create({
-//     data,
-//   });
+  return formattedClients;
+};
 
-//   return {
-//     id: newClient.id,
-//     first_name: newClient.first_name,
-//     last_name: newClient.last_name,
-//     email: newClient.email,
-//     phone: newClient.phone,
-//     date_of_birth: newClient.date_of_birth,
-//     gender: newClient.gender,
-//     is_verified: newClient.is_verified,
-//     isExisting: false,
-//   };
-// };
+const ClientService = {
+  GetCounselorClientsById,
+};
 
-// const GetClientById = async (id: string) => {
-//   const client = await prisma.client.findUnique({
-//     where: { id },
-//     select: {
-//       id: true,
-//       first_name: true,
-//       last_name: true,
-//       email: true,
-//       phone: true,
-//       date_of_birth: true,
-//       gender: true,
-//       is_verified: true,
-//       created_at: true,
-//       updated_at: true,
-//     },
-//   });
-
-//   return client;
-// };
-
-// const VerifyClient = async (id: string) => {
-//   // const updatedClient = await prisma.client.update({
-//   //   where: { id },
-//   //   data: { is_verified: true },
-//   //   select: {
-//   //     id: true,
-//   //     first_name: true,
-//   //     last_name: true,
-//   //     email: true,
-//   //     phone: true,
-//   //     is_verified: true,
-//   //   },
-//   // });
-
-//   return {};
-// };
-
-// const ClientService = {
-//   CreateClientOrVerify,
-//   GetClientById,
-//   VerifyClient,
-// };
-
-// export default ClientService;
+export default ClientService;
