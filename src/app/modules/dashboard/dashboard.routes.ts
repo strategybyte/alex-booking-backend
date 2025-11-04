@@ -9,6 +9,8 @@ const router = express.Router();
 
 router.use(auth(Role.SUPER_ADMIN, Role.COUNSELOR));
 
+// Get Dashboard Data
+
 router.get(
   '/',
   validateRequest(DashboardValidation.getDashboardSchema),
