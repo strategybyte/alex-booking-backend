@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: alex-booking-backend
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"

@@ -16,6 +16,10 @@
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "removeComments": true,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "baseUrl": ".",
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node"],
+    "lib": ["es2016"]
   }
 }
