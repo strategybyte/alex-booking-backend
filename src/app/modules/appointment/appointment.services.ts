@@ -751,7 +751,7 @@ const CreateManualAppointment = async (
             console.log(
               `Google Calendar event created for manual appointment ${fullAppointment.id}`,
             );
-            meetingLink = calendarResult.meetingLink;
+            meetingLink = calendarResult.meetingLink ?? undefined;
 
             // Update appointment with event_id
             await prisma.appointment.update({

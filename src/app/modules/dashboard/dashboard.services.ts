@@ -227,12 +227,12 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
   });
 
   // Find counselor with highest bookings
-  const counselorWithHighestBookings = formattedCounselors.reduce(
-    (max, counselor) => {
-      return counselor.bookingCount > max.bookingCount ? counselor : max;
-    },
-    { counselor: null, bookingCount: 0, appointments: [] },
-  );
+  const counselorWithHighestBookings =
+    formattedCounselors.length > 0
+      ? formattedCounselors.reduce((max, counselor) => {
+          return counselor.bookingCount > max.bookingCount ? counselor : max;
+        })
+      : null;
 
   // Calculate overall statistics
   const totalAppointments = formattedCounselors.reduce(
@@ -265,6 +265,7 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
     date: dateString,
     counselors: formattedCounselors,
     topCounselor:
+      counselorWithHighestBookings &&
       counselorWithHighestBookings.bookingCount > 0
         ? {
             counselor: counselorWithHighestBookings.counselor,
