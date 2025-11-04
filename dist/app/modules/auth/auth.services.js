@@ -95,6 +95,15 @@ const GetMyProfile = (user) => __awaiter(void 0, void 0, void 0, function* () {
     if (!userProfile) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'User not found');
     }
+    if (userProfile.role === 'COUNSELOR') {
+        const counselorSettings = yield prisma_1.default.counselorSettings.findUnique({
+            where: { counselor_id: user.id },
+            select: {
+                minimum_slots_per_day: true,
+            },
+        });
+        return Object.assign(Object.assign({}, userProfile), { minimum_slots_per_day: (counselorSettings === null || counselorSettings === void 0 ? void 0 : counselorSettings.minimum_slots_per_day) || 6 });
+    }
     return userProfile;
 });
 const UpdateProfile = (payload, profilePicture, user) => __awaiter(void 0, void 0, void 0, function* () {
@@ -127,6 +136,15 @@ const UpdateProfile = (payload, profilePicture, user) => __awaiter(void 0, void 
             created_at: true,
         },
     });
+    if (updatedUser.role === 'COUNSELOR') {
+        const counselorSettings = yield prisma_1.default.counselorSettings.findUnique({
+            where: { counselor_id: user.id },
+            select: {
+                minimum_slots_per_day: true,
+            },
+        });
+        return Object.assign(Object.assign({}, updatedUser), { minimum_slots_per_day: (counselorSettings === null || counselorSettings === void 0 ? void 0 : counselorSettings.minimum_slots_per_day) || 6 });
+    }
     return updatedUser;
 });
 const DeleteProfilePicture = (user) => __awaiter(void 0, void 0, void 0, function* () {
@@ -161,6 +179,15 @@ const DeleteProfilePicture = (user) => __awaiter(void 0, void 0, void 0, functio
             created_at: true,
         },
     });
+    if (updatedUser.role === 'COUNSELOR') {
+        const counselorSettings = yield prisma_1.default.counselorSettings.findUnique({
+            where: { counselor_id: user.id },
+            select: {
+                minimum_slots_per_day: true,
+            },
+        });
+        return Object.assign(Object.assign({}, updatedUser), { minimum_slots_per_day: (counselorSettings === null || counselorSettings === void 0 ? void 0 : counselorSettings.minimum_slots_per_day) || 6 });
+    }
     return updatedUser;
 });
 const AuthService = {

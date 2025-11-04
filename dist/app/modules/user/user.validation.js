@@ -28,8 +28,21 @@ const createCounselorSchema = zod_1.z.object({
             .optional(),
     }),
 });
+const updateCounselorSettingsSchema = zod_1.z.object({
+    body: zod_1.z.object({
+        minimum_slots_per_day: zod_1.z
+            .number({
+            required_error: 'Minimum slots per day is required',
+            invalid_type_error: 'Minimum slots per day must be a number',
+        })
+            .int('Minimum slots per day must be an integer')
+            .min(1, 'Minimum slots per day must be at least 1')
+            .max(50, 'Minimum slots per day cannot exceed 50'),
+    }),
+});
 const UserValidation = {
     updateProfileSchema,
     createCounselorSchema,
+    updateCounselorSettingsSchema,
 };
 exports.default = UserValidation;

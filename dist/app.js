@@ -32,6 +32,9 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use('/api/v1', routes_1.default);
+app.get('/health', (_req, res) => {
+    res.json({ message: 'api is working' });
+});
 app.use(globalErrorHandler_1.default);
 app.use(notFound_1.default);
 exports.default = app;

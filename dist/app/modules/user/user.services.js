@@ -99,24 +99,33 @@ const CreateCounselor = (payload) => __awaiter(void 0, void 0, void 0, function*
     }
     const randomPassword = user_utils_1.default.generateRandomPassword();
     const hashedPassword = yield bcrypt_1.default.hash(randomPassword, Number(config_1.default.bcrypt_salt_rounds));
-    const newCounselor = yield prisma_1.default.user.create({
-        data: {
-            name,
-            email,
-            password: hashedPassword,
-            role: client_1.Role.COUNSELOR,
-            specialization: specialization || null,
-        },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            specialization: true,
-            role: true,
-            created_at: true,
-            updated_at: true,
-        },
-    });
+    const newCounselor = yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        const counselor = yield tx.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                role: client_1.Role.COUNSELOR,
+                specialization: specialization || null,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                specialization: true,
+                role: true,
+                created_at: true,
+                updated_at: true,
+            },
+        });
+        yield tx.counselorSettings.create({
+            data: {
+                counselor_id: counselor.id,
+                minimum_slots_per_day: 6,
+            },
+        });
+        return counselor;
+    }));
     Promise.resolve().then(() => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const emailTemplate = user_utils_1.default.createCounselorEmailTemplate(name, email, randomPassword);
@@ -181,9 +190,32 @@ const GetCounselors = (filters, paginationOptions) => __awaiter(void 0, void 0, 
         },
     };
 });
+const UpdateCounselorSettings = (counselorId, payload) => __awaiter(void 0, void 0, void 0, function* () {
+    const counselor = yield prisma_1.default.user.findUnique({
+        where: { id: counselorId },
+    });
+    if (!counselor) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Counselor not found');
+    }
+    if (counselor.role !== client_1.Role.COUNSELOR) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'User is not a counselor');
+    }
+    const updatedSettings = yield prisma_1.default.counselorSettings.upsert({
+        where: { counselor_id: counselorId },
+        update: {
+            minimum_slots_per_day: payload.minimum_slots_per_day,
+        },
+        create: {
+            counselor_id: counselorId,
+            minimum_slots_per_day: payload.minimum_slots_per_day,
+        },
+    });
+    return updatedSettings;
+});
 exports.UserService = {
     UpdateProfilePicture,
     UpdateUserProfile,
     CreateCounselor,
     GetCounselors,
+    UpdateCounselorSettings,
 };

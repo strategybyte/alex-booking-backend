@@ -34,114 +34,165 @@ Content-Type: application/json
 }
 ```
 
-## Field Details
+# Set minimum to 10 slots per day
 
-| Field | Type | Required | Enum Values | Description |
-|-------|------|----------|-------------|-------------|
-| firstName | string | Yes | - | Client's first name |
-| lastName | string | Yes | - | Client's last name |
-| email | string | Yes | - | Client's email (must be valid email format) |
-| phone | string | Yes | - | Client's phone number |
-| dateOfBirth | string | Yes | - | Client's date of birth (YYYY-MM-DD format) |
-| gender | string | Yes | MALE, FEMALE, OTHER | Client's gender |
-| sessionType | string | Yes | ONLINE, IN_PERSON | Type of counseling session |
-| date | string | Yes | - | Appointment date (YYYY-MM-DD format) |
-| timeSlotId | string | Yes | - | UUID of the available time slot |
-| notes | string | No | - | Optional notes about the appointment |
+```
+PATCH {baseUrl}/api/v1/users/counselors/38ecce2d-3d81-4c18-b2bd-faf6b4da7b0b/settings
 
-## Success Response (201 Created)
-```json
+Headers:
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+Body (raw JSON):
 {
-  "success": true,
-  "statusCode": 201,
-  "message": "Appointment created successfully. Confirmation email sent to client.",
-  "data": {
-    "id": "appointment-uuid",
-    "client_id": "client-uuid",
-    "counselor_id": "counselor-uuid",
-    "time_slot_id": "timeslot-uuid",
-    "session_type": "ONLINE",
-    "date": "2025-12-15T00:00:00.000Z",
-    "notes": "Client needs help with anxiety management",
-    "status": "CONFIRMED",
-    "is_rescheduled": false,
-    "event_id": null,
-    "created_at": "2025-11-04T10:30:00.000Z",
-    "updated_at": "2025-11-04T10:30:00.000Z",
-    "client": {
-      "first_name": "John",
-      "last_name": "Doe",
-      "email": "john.doe@example.com"
-    },
-    "counselor": {
-      "id": "counselor-uuid",
-      "name": "Dr. Smith",
-      "email": "smith@example.com"
-    },
-    "time_slot": {
-      "start_time": "10:00 AM",
-      "end_time": "11:00 AM"
-    }
-  }
+  "minimum_slots_per_day": 10 #input
 }
 ```
 
-## What Happens After Creation
-1. **Appointment is created** with CONFIRMED status (no payment required)
-2. **Time slot is marked as BOOKED** immediately
-3. **Google Calendar event is created** automatically (if counselor has Google Calendar connected)
-4. **Client receives confirmation email** with:
-   - Appointment details (date, time, counselor)
-   - Meeting link (for online sessions)
-   - Booking link to schedule future appointments
+## How This Affects Slot Creation/Deletion
 
-## Error Responses
+### When Creating Slots:
+- System validates that counselor provides at least the minimum number of slots per day
+- If counselor tries to create 5 slots but minimum is 10, request will fail
 
-### 401 Unauthorized
-```json
-{
-  "success": false,
-  "statusCode": 401,
-  "message": "Unauthorized"
-}
-```
-
-### 403 Forbidden
-```json
-{
-  "success": false,
-  "statusCode": 403,
-  "message": "You don't have permission to access this route"
-}
-```
-
-### 422 Unprocessable Entity (Time slot not available)
-```json
-{
-  "success": false,
-  "statusCode": 422,
-  "message": "Time slot is not available"
-}
-```
-
-### 400 Bad Request (Validation errors)
-```json
-{
-  "success": false,
-  "statusCode": 400,
-  "message": "Validation error",
-  "errorMessages": [
-    {
-      "path": "email",
-      "message": "Invalid email format"
-    }
-  ]
-}
-```
+### When Deleting Slots:
+- System checks if deletion would bring total slots below minimum
+- Example: If minimum is 6 and calendar has 6 slots, cannot delete any
+- Error message shows current count and minimum requirement
 
 ## Testing Tips
-1. Make sure the time slot ID belongs to your counselor account
-2. The time slot must have status "AVAILABLE"
-3. Session type must match the time slot type
-4. Email will be sent to the client's email address
-5. If client email already exists, their information will be updated
+1. You must be logged in as SUPER_ADMIN to use this endpoint
+2. The counselorId in the URL must be a valid UUID
+3. minimum_slots_per_day must be a number between 1 and 50
+4. Default value is 6 when counselor is first created
+5. Each counselor can have different minimum requirements
+
+
+
+
+
+# Dashbaord
+
+GET /api/v1/dashboard/?date=2025-11-04 
+(if prev and next days user wants to dy defulat current date)
+
+### As Super Admin [Response]
+
+```
+{
+    "statusCode": 200,
+    "success": true,
+    "message": "Dashboard data retrieved successfully",
+    "data": {
+        "date": "2025-11-04",
+        "counselors": [
+            {
+                "counselor": {
+                    "id": "4bd6f388-3de8-40fc-a0b4-10af98947bc5",
+                    "name": "Dr. Tausif Mahmud",
+                    "email": "tausif.mahmud@example.com",
+                    "specialization": "Clinical Psychology",
+                    "profilePicture": null
+                },
+                "bookingCount": 0,
+                "appointments": []
+            },
+            {
+                "counselor": {
+                    "id": "e9377906-33dc-440c-8890-8d0d5ccef61c",
+                    "name": "Md Sakibul Islam ",
+                    "email": "sakibxrz21@gmail.com",
+                    "specialization": null,
+                    "profilePicture": null
+                },
+                "bookingCount": 0,
+                "appointments": []
+            },
+            {
+                "counselor": {
+                    "id": "6fd7d4e9-440d-45c5-bd39-c9fc251d60d9",
+                    "name": "Tanvirul Hasan",
+                    "email": "tanvirulaml@gmail.com",
+                    "specialization": "Mental Health Specialist",
+                    "profilePicture": "https://syd1.digitaloceanspaces.com/alexrodriguez/profile-pictures/79f4f54d-b13c-40f4-8875-d12064eeaf3d.jpg"
+                },
+                "bookingCount": 0,
+                "appointments": []
+            },
+            {
+                "counselor": {
+                    "id": "38ecce2d-3d81-4c18-b2bd-faf6b4da7b0b",
+                    "name": "Tanvirul Hasan Arafat",
+                    "email": "tanvirul.hasan342@gmail.com",
+                    "specialization": "Mental Health Specialist\n",
+                    "profilePicture": null
+                },
+                "bookingCount": 0,
+                "appointments": []
+            },
+            {
+                "counselor": {
+                    "id": "f671bcbe-a45b-4b3e-b363-1f333bdecb91",
+                    "name": "Tausif  Daam Cool",
+                    "email": "tmahmud44@gmail.com",
+                    "specialization": "Clinical Psychology",
+                    "profilePicture": null
+                },
+                "bookingCount": 0,
+                "appointments": []
+            }
+        ],
+        "topCounselor": null,
+        "statistics": {
+            "totalAppointments": 0,
+            "totalCounselors": 5,
+            "counselorsWithBookings": 0,
+            "byStatus": {
+                "pending": 0,
+                "confirmed": 0,
+                "completed": 0,
+                "cancelled": 0
+            },
+            "bySessionType": {
+                "online": 0,
+                "inPerson": 0
+            }
+        }
+    }
+}
+
+```
+
+
+
+
+# As Counselor
+
+```
+
+{
+    "statusCode": 200,
+    "success": true,
+    "message": "Dashboard data retrieved successfully",
+    "data": {
+        "date": "2025-11-04",
+        "appointments": [],
+        "statistics": {
+            "totalAppointments": 0,
+            "byStatus": {
+                "pending": 0,
+                "confirmed": 0,
+                "completed": 0,
+                "cancelled": 0
+            },
+            "bySessionType": {
+                "online": 0,
+                "inPerson": 0
+            }
+        }
+    }
+}
+
+```
+
+

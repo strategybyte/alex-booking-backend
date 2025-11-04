@@ -137,6 +137,21 @@ const GetMyProfile = async (user: JwtPayload) => {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
+  // If user is a counselor, include their settings
+  if (userProfile.role === 'COUNSELOR') {
+    const counselorSettings = await prisma.counselorSettings.findUnique({
+      where: { counselor_id: user.id },
+      select: {
+        minimum_slots_per_day: true,
+      },
+    });
+
+    return {
+      ...userProfile,
+      minimum_slots_per_day: counselorSettings?.minimum_slots_per_day || 6,
+    };
+  }
+
   return userProfile;
 };
 
@@ -184,6 +199,21 @@ const UpdateProfile = async (
     },
   });
 
+  // If user is a counselor, include their settings
+  if (updatedUser.role === 'COUNSELOR') {
+    const counselorSettings = await prisma.counselorSettings.findUnique({
+      where: { counselor_id: user.id },
+      select: {
+        minimum_slots_per_day: true,
+      },
+    });
+
+    return {
+      ...updatedUser,
+      minimum_slots_per_day: counselorSettings?.minimum_slots_per_day || 6,
+    };
+  }
+
   return updatedUser;
 };
 
@@ -224,6 +254,21 @@ const DeleteProfilePicture = async (user: JwtPayload) => {
       created_at: true,
     },
   });
+
+  // If user is a counselor, include their settings
+  if (updatedUser.role === 'COUNSELOR') {
+    const counselorSettings = await prisma.counselorSettings.findUnique({
+      where: { counselor_id: user.id },
+      select: {
+        minimum_slots_per_day: true,
+      },
+    });
+
+    return {
+      ...updatedUser,
+      minimum_slots_per_day: counselorSettings?.minimum_slots_per_day || 6,
+    };
+  }
 
   return updatedUser;
 };

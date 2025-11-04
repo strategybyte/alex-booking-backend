@@ -49,9 +49,47 @@ const rescheduleAppointmentSchema = zod_1.z.object({
     query: zod_1.z.object({}).optional(),
     cookies: zod_1.z.object({}).optional(),
 });
+const createManualAppointmentSchema = zod_1.z.object({
+    body: zod_1.z.object({
+        firstName: zod_1.z.string({
+            required_error: 'First name is required',
+        }),
+        lastName: zod_1.z.string({
+            required_error: 'Last name is required',
+        }),
+        email: zod_1.z
+            .string({
+            required_error: 'Email is required',
+        })
+            .email('Invalid email format'),
+        phone: zod_1.z.string({
+            required_error: 'Phone is required',
+        }),
+        dateOfBirth: zod_1.z.string({
+            required_error: 'Date of birth is required',
+        }),
+        gender: zod_1.z.enum(['MALE', 'FEMALE', 'OTHER'], {
+            required_error: 'Gender is required',
+        }),
+        sessionType: zod_1.z.enum(['ONLINE', 'IN_PERSON'], {
+            required_error: 'Session type is required',
+        }),
+        date: zod_1.z.string({
+            required_error: 'Date is required',
+        }),
+        timeSlotId: zod_1.z.string({
+            required_error: 'Time slot ID is required',
+        }),
+        notes: zod_1.z.string().optional(),
+    }),
+    query: zod_1.z.object({}).optional(),
+    params: zod_1.z.object({}).optional(),
+    cookies: zod_1.z.object({}).optional(),
+});
 const AppointmentValidation = {
     getAppointmentsQuerySchema,
     cancelAppointmentSchema,
     rescheduleAppointmentSchema,
+    createManualAppointmentSchema,
 };
 exports.default = AppointmentValidation;

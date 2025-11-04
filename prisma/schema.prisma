@@ -99,8 +99,23 @@ model User {
   counsellor_balance   CounsellorBalance?
   payout_requests      PayoutRequest[]
   balance_transactions BalanceTransaction[]
+  counselor_settings   CounselorSettings?
 
   @@map("users")
+}
+
+model CounselorSettings {
+  id                      String   @id @default(uuid())
+  counselor_id            String   @unique
+  minimum_slots_per_day   Int      @default(6)
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  // Relations
+  counselor User @relation(fields: [counselor_id], references: [id], onDelete: Cascade)
+
+  @@index([counselor_id])
+  @@map("counselor_settings")
 }
 
 model Calendar {

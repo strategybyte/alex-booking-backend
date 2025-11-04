@@ -57,9 +57,24 @@ const GetCounselors = catchAsync(async (req, res) => {
   });
 });
 
+const UpdateCounselorSettings = catchAsync(async (req, res) => {
+  const { counselorId } = req.params;
+  const result = await UserService.UpdateCounselorSettings(
+    counselorId,
+    req.body,
+  );
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Counselor settings updated successfully',
+    data: result,
+  });
+});
+
 export const UserController = {
   UpdateProfilePicture,
   UpdateProfile,
   CreateCounselor,
   GetCounselors,
+  UpdateCounselorSettings,
 };

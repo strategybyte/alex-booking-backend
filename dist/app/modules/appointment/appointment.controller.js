@@ -71,11 +71,21 @@ const RescheduleCounselorAppointmentById = (0, catchAsync_1.default)((req, res) 
         data: result,
     });
 }));
+const CreateManualAppointment = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield appointment_services_1.default.CreateManualAppointment(req.user.id, req.body);
+    (0, sendResponse_1.default)(res, {
+        success: true,
+        statusCode: http_status_1.default.CREATED,
+        message: 'Appointment created successfully. Confirmation email sent to client.',
+        data: result,
+    });
+}));
 const AppointmentController = {
     GetCounselorAppointments,
     GetCounselorAppointmentDetailsById,
     CompleteCounselorAppointmentById,
     CancelCounselorAppointmentById,
     RescheduleCounselorAppointmentById,
+    CreateManualAppointment,
 };
 exports.default = AppointmentController;

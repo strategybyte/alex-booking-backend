@@ -46,9 +46,24 @@ const PostDateSlots = catchAsync(async (req, res) => {
 });
 
 const PostSlotsWithCalendarDate = catchAsync(async (req, res) => {
+  // Support both single date format and bulk data array format
+  let payload = req.body;
+
+  // If request has date and slots at root level, wrap it in data array
+  if (req.body.date && req.body.slots && !req.body.data) {
+    payload = {
+      data: [
+        {
+          date: req.body.date,
+          slots: req.body.slots,
+        },
+      ],
+    };
+  }
+
   const result = await CalendarService.CreateSlotsWithCalendarDate(
     req.user.id,
-    req.body,
+    payload,
   );
   sendResponse(res, {
     success: true,

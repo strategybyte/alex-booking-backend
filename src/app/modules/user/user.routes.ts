@@ -19,6 +19,13 @@ router.post(
 
 router.get('/counselors', auth(Role.SUPER_ADMIN), UserController.GetCounselors);
 
+router.patch(
+  '/counselors/:counselorId/settings',
+  auth(Role.SUPER_ADMIN),
+  validateRequest(UserValidation.updateCounselorSettingsSchema),
+  UserController.UpdateCounselorSettings,
+);
+
 // Routes that require SUPER_ADMIN or COUNSELOR access
 router.use(auth(Role.SUPER_ADMIN, Role.COUNSELOR));
 

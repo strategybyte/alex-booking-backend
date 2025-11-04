@@ -18,10 +18,13 @@ router
     validateRequest(CalendarValidation.CreateCalendarSchema),
     CalendarController.PostCalendarDate,
   );
-router.route('/slots').get(CalendarController.GetSlotsWithCalendarDate).post(
-  // validateRequest(CalendarValidation.CreateCalendarSchema),
-  CalendarController.PostSlotsWithCalendarDate,
-);
+router
+  .route('/slots')
+  .get(CalendarController.GetSlotsWithCalendarDate)
+  .post(
+    validateRequest(CalendarValidation.CreateCalendarWithSlotsSchema),
+    CalendarController.PostSlotsWithCalendarDate,
+  );
 
 router
   .route('/:id/slots')

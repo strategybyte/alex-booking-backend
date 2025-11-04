@@ -129,24 +129,37 @@ const CreateCounselor = async (payload: {
     Number(config.bcrypt_salt_rounds),
   );
 
-  // Create counselor
-  const newCounselor = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-      role: Role.COUNSELOR,
-      specialization: specialization || null,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      specialization: true,
-      role: true,
-      created_at: true,
-      updated_at: true,
-    },
+  // Create counselor with default settings in a transaction
+  const newCounselor = await prisma.$transaction(async (tx) => {
+    // Create the counselor
+    const counselor = await tx.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: Role.COUNSELOR,
+        specialization: specialization || null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        specialization: true,
+        role: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    // Create default counselor settings
+    await tx.counselorSettings.create({
+      data: {
+        counselor_id: counselor.id,
+        minimum_slots_per_day: 6, // Default minimum slots
+      },
+    });
+
+    return counselor;
   });
 
   // Send email with credentials in background (non-blocking)
@@ -235,9 +248,45 @@ const GetCounselors = async (
   };
 };
 
+const UpdateCounselorSettings = async (
+  counselorId: string,
+  payload: { minimum_slots_per_day: number },
+) => {
+  // Check if counselor exists and has COUNSELOR role
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  if (counselor.role !== Role.COUNSELOR) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'User is not a counselor',
+    );
+  }
+
+  // Update or create counselor settings
+  const updatedSettings = await prisma.counselorSettings.upsert({
+    where: { counselor_id: counselorId },
+    update: {
+      minimum_slots_per_day: payload.minimum_slots_per_day,
+    },
+    create: {
+      counselor_id: counselorId,
+      minimum_slots_per_day: payload.minimum_slots_per_day,
+    },
+  });
+
+  return updatedSettings;
+};
+
 export const UserService = {
   UpdateProfilePicture,
   UpdateUserProfile,
   CreateCounselor,
   GetCounselors,
+  UpdateCounselorSettings,
 };

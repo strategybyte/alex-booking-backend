@@ -18,6 +18,7 @@ const google_routes_1 = require("../modules/google/google.routes");
 const balance_routes_1 = require("../modules/balance/balance.routes");
 const payout_routes_1 = require("../modules/payout/payout.routes");
 const stripe_routes_1 = require("../modules/stripe/stripe.routes");
+const dashboard_routes_1 = require("../modules/dashboard/dashboard.routes");
 const router = express_1.default.Router();
 const routes = [
     { path: '/auth', route: auth_routes_1.AuthRoutes },
@@ -34,6 +35,7 @@ const routes = [
     { path: '/balance', route: balance_routes_1.BalanceRoutes },
     { path: '/payouts', route: payout_routes_1.PayoutRoutes },
     { path: '/stripe', route: stripe_routes_1.StripeRoutes },
+    { path: '/dashboard', route: dashboard_routes_1.DashboardRoutes },
 ];
 routes.forEach((route) => {
     router.use(route.path, route.route);

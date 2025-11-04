@@ -54,7 +54,18 @@ const PostDateSlots = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
     });
 }));
 const PostSlotsWithCalendarDate = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield calendar_services_1.default.CreateSlotsWithCalendarDate(req.user.id, req.body);
+    let payload = req.body;
+    if (req.body.date && req.body.slots && !req.body.data) {
+        payload = {
+            data: [
+                {
+                    date: req.body.date,
+                    slots: req.body.slots,
+                },
+            ],
+        };
+    }
+    const result = yield calendar_services_1.default.CreateSlotsWithCalendarDate(req.user.id, payload);
     (0, sendResponse_1.default)(res, {
         success: true,
         statusCode: http_status_1.default.CREATED,

@@ -15,6 +15,7 @@ const router = express_1.default.Router();
 const upload = (0, multer_1.default)();
 router.post('/create-counselor', (0, auth_1.default)(client_1.Role.SUPER_ADMIN), (0, validateRequest_1.default)(user_validation_1.default.createCounselorSchema), user_controller_1.UserController.CreateCounselor);
 router.get('/counselors', (0, auth_1.default)(client_1.Role.SUPER_ADMIN), user_controller_1.UserController.GetCounselors);
+router.patch('/counselors/:counselorId/settings', (0, auth_1.default)(client_1.Role.SUPER_ADMIN), (0, validateRequest_1.default)(user_validation_1.default.updateCounselorSettingsSchema), user_controller_1.UserController.UpdateCounselorSettings);
 router.use((0, auth_1.default)(client_1.Role.SUPER_ADMIN, client_1.Role.COUNSELOR));
 router.patch('/profile', (0, validateRequest_1.default)(user_validation_1.default.updateProfileSchema), user_controller_1.UserController.UpdateProfile);
 router.patch('/profile/picture', upload.single('image'), user_controller_1.UserController.UpdateProfilePicture);

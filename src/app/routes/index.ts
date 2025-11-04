@@ -13,6 +13,7 @@ import { GoogleRoutes } from '../modules/google/google.routes';
 import { BalanceRoutes } from '../modules/balance/balance.routes';
 import { PayoutRoutes } from '../modules/payout/payout.routes';
 import { StripeRoutes } from '../modules/stripe/stripe.routes';
+import { DashboardRoutes } from '../modules/dashboard/dashboard.routes';
 
 const router = express.Router();
 
@@ -33,6 +34,7 @@ const routes: Route[] = [
   { path: '/balance', route: BalanceRoutes },
   { path: '/payouts', route: PayoutRoutes },
   { path: '/stripe', route: StripeRoutes },
+  { path: '/dashboard', route: DashboardRoutes },
 ];
 
 routes.forEach((route) => {
