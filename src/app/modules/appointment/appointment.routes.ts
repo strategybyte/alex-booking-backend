@@ -9,6 +9,11 @@ const router = express.Router();
 
 router.use(auth(Role.SUPER_ADMIN, Role.COUNSELOR));
 
+router.post(
+  '/',
+  validateRequest(AppointmentValidation.createManualAppointmentSchema),
+  AppointmentController.CreateManualAppointment,
+);
 router.get(
   '/',
   validateRequest(AppointmentValidation.getAppointmentsQuerySchema),

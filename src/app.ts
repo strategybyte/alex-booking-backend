@@ -41,10 +41,17 @@ app.use(
 // application routes
 app.use('/api/v1', router);
 
+app.get('/health', (_req, res) => {
+  res.json({ message: 'api is working' });
+});
+
 //global error handler
 app.use(globalErrorHandler);
 
+
 // handle not found routes
 app.use(notFound);
+
+
 
 export default app;

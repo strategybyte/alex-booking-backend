@@ -535,12 +535,295 @@ const RescheduleAppointmentById = async (
   return updatedAppointment;
 };
 
+interface IManualAppointmentData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  sessionType: 'ONLINE' | 'IN_PERSON';
+  date: string;
+  timeSlotId: string;
+  notes?: string;
+}
+
+const CreateManualAppointment = async (
+  counselorId: string,
+  data: IManualAppointmentData,
+) => {
+  // Get counselor details first
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  // Check if time slot is available
+  const timeSlot = await prisma.timeSlot.findFirst({
+    where: {
+      id: data.timeSlotId,
+      status: 'AVAILABLE',
+    },
+    include: {
+      calendar: {
+        include: {
+          counselor: true,
+        },
+      },
+    },
+  });
+
+  if (!timeSlot) {
+    throw new AppError(
+      httpStatus.UNPROCESSABLE_ENTITY,
+      'Time slot is not available',
+    );
+  }
+
+  // Verify the session type matches the slot type
+  if (timeSlot.type !== data.sessionType) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Session type does not match the selected time slot type',
+    );
+  }
+
+  // Verify the counselor matches
+  if (timeSlot.calendar.counselor_id !== counselorId) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Time slot does not belong to this counselor',
+    );
+  }
+
+  // Create appointment in transaction
+  const appointment = await prisma.$transaction(
+    async (tx) => {
+      // Upsert client
+      const client = await tx.client.upsert({
+        where: {
+          email: data.email,
+        },
+        update: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone: data.phone,
+          date_of_birth: new Date(data.dateOfBirth).toISOString(),
+          gender: data.gender,
+        },
+        create: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          date_of_birth: new Date(data.dateOfBirth).toISOString(),
+          gender: data.gender,
+        },
+      });
+
+      // Create appointment and update time slot
+      const [, newAppointment] = await Promise.all([
+        // Mark the time slot as BOOKED (manual appointments are immediately confirmed)
+        tx.timeSlot.update({
+          where: { id: data.timeSlotId },
+          data: { status: 'BOOKED' },
+        }),
+        // Create Appointment with CONFIRMED status (no payment required for manual appointments)
+        tx.appointment.create({
+          data: {
+            client_id: client.id,
+            time_slot_id: data.timeSlotId,
+            counselor_id: counselorId,
+            date: new Date(data.date).toISOString(),
+            session_type: data.sessionType,
+            notes: data.notes || '',
+            status: 'CONFIRMED',
+          },
+          include: {
+            client: true,
+            counselor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            time_slot: true,
+          },
+        }),
+      ]);
+
+      return newAppointment;
+    },
+    {
+      timeout: 10000,
+      maxWait: 5000,
+    },
+  );
+
+  // Create Google Calendar event and send email asynchronously
+  setImmediate(async () => {
+    try {
+      // Get full appointment details with calendar info
+      const fullAppointment = await prisma.appointment.findUnique({
+        where: { id: appointment.id },
+        include: {
+          client: true,
+          counselor: true,
+          time_slot: {
+            include: {
+              calendar: true,
+            },
+          },
+        },
+      });
+
+      if (!fullAppointment) {
+        console.error('Appointment not found after creation');
+        return;
+      }
+
+      let meetingLink: string | undefined;
+
+      // Create Google Calendar event
+      try {
+        const businessTimeZone = 'Asia/Dhaka';
+        const appointmentDate = new Date(fullAppointment.date);
+
+        // Parse time strings
+        const startTimeMatch = fullAppointment.time_slot.start_time.match(
+          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+        );
+        const endTimeMatch = fullAppointment.time_slot.end_time.match(
+          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+        );
+
+        if (startTimeMatch && endTimeMatch) {
+          // Parse start time
+          let startHour = parseInt(startTimeMatch[1]);
+          const startMinute = parseInt(startTimeMatch[2]);
+          const startPeriod = startTimeMatch[3].toUpperCase();
+
+          if (startPeriod === 'PM' && startHour !== 12) {
+            startHour += 12;
+          } else if (startPeriod === 'AM' && startHour === 12) {
+            startHour = 0;
+          }
+
+          // Parse end time
+          let endHour = parseInt(endTimeMatch[1]);
+          const endMinute = parseInt(endTimeMatch[2]);
+          const endPeriod = endTimeMatch[3].toUpperCase();
+
+          if (endPeriod === 'PM' && endHour !== 12) {
+            endHour += 12;
+          } else if (endPeriod === 'AM' && endHour === 12) {
+            endHour = 0;
+          }
+
+          // Create datetime strings
+          const year = appointmentDate.getFullYear();
+          const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+          const day = String(appointmentDate.getDate()).padStart(2, '0');
+
+          const startTimeStr = `${year}-${month}-${day}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00+06:00`;
+          const endTimeStr = `${year}-${month}-${day}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+06:00`;
+
+          const startDateTimeUTC = new Date(startTimeStr);
+          const endDateTimeUTC = new Date(endTimeStr);
+
+          // Create Google Calendar event
+          const calendarResult = await GoogleCalendarService.createCalendarEvent(
+            {
+              appointmentId: fullAppointment.id,
+              counselorId: fullAppointment.counselor_id,
+              clientEmail: fullAppointment.client.email,
+              clientName: `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`,
+              startDateTime: startDateTimeUTC,
+              endDateTime: endDateTimeUTC,
+              timeZone: businessTimeZone,
+            },
+          );
+
+          if (calendarResult) {
+            console.log(
+              `Google Calendar event created for manual appointment ${fullAppointment.id}`,
+            );
+            meetingLink = calendarResult.meetingLink;
+
+            // Update appointment with event_id
+            await prisma.appointment.update({
+              where: { id: fullAppointment.id },
+              data: { event_id: calendarResult.eventId },
+            });
+          }
+        }
+      } catch (calendarError) {
+        console.error(
+          'Error creating Google Calendar event for manual appointment:',
+          calendarError,
+        );
+        // Continue to send email even if calendar creation fails
+      }
+
+      // Send confirmation email to client
+      try {
+        const sendMail = (await import('../../utils/mailer')).default;
+        const AppointmentUtils = (
+          await import('./appointment.utils')
+        ).default;
+
+        const emailBody = AppointmentUtils.createAppointmentConfirmationEmail({
+          clientName: `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`,
+          counselorName: fullAppointment.counselor.name,
+          appointmentDate: new Date(fullAppointment.date).toLocaleDateString(
+            'en-US',
+            {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            },
+          ),
+          appointmentTime: `${fullAppointment.time_slot.start_time} - ${fullAppointment.time_slot.end_time}`,
+          sessionType: fullAppointment.session_type,
+          meetingLink,
+          counselorId: fullAppointment.counselor_id,
+        });
+
+        await sendMail(
+          fullAppointment.client.email,
+          'Appointment Confirmed - Alexander Rodriguez Counseling',
+          emailBody,
+        );
+
+        console.log(
+          `Confirmation email sent to ${fullAppointment.client.email}`,
+        );
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      }
+    } catch (error) {
+      console.error(
+        'Error in post-appointment creation tasks:',
+        error,
+      );
+    }
+  });
+
+  return appointment;
+};
+
 const AppointmentService = {
   GetCounselorAppointmentsById,
   GetCounselorAppointmentDetailsById,
   CompleteAppointmentById,
   CancelAppointmentById,
   RescheduleAppointmentById,
+  CreateManualAppointment,
 };
 
 export default AppointmentService;

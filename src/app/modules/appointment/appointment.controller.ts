@@ -86,12 +86,27 @@ const RescheduleCounselorAppointmentById = catchAsync(async (req, res) => {
   });
 });
 
+const CreateManualAppointment = catchAsync(async (req, res) => {
+  const result = await AppointmentService.CreateManualAppointment(
+    req.user.id,
+    req.body,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.CREATED,
+    message: 'Appointment created successfully. Confirmation email sent to client.',
+    data: result,
+  });
+});
+
 const AppointmentController = {
   GetCounselorAppointments,
   GetCounselorAppointmentDetailsById,
   CompleteCounselorAppointmentById,
   CancelCounselorAppointmentById,
   RescheduleCounselorAppointmentById,
+  CreateManualAppointment,
 };
 
 export default AppointmentController;
