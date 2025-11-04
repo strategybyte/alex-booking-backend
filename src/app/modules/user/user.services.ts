@@ -262,10 +262,7 @@ const UpdateCounselorSettings = async (
   }
 
   if (counselor.role !== Role.COUNSELOR) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'User is not a counselor',
-    );
+    throw new AppError(httpStatus.BAD_REQUEST, 'User is not a counselor');
   }
 
   // Update or create counselor settings

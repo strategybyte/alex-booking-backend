@@ -736,8 +736,8 @@ const CreateManualAppointment = async (
           const endDateTimeUTC = new Date(endTimeStr);
 
           // Create Google Calendar event
-          const calendarResult = await GoogleCalendarService.createCalendarEvent(
-            {
+          const calendarResult =
+            await GoogleCalendarService.createCalendarEvent({
               appointmentId: fullAppointment.id,
               counselorId: fullAppointment.counselor_id,
               clientEmail: fullAppointment.client.email,
@@ -745,8 +745,7 @@ const CreateManualAppointment = async (
               startDateTime: startDateTimeUTC,
               endDateTime: endDateTimeUTC,
               timeZone: businessTimeZone,
-            },
-          );
+            });
 
           if (calendarResult) {
             console.log(
@@ -772,9 +771,7 @@ const CreateManualAppointment = async (
       // Send confirmation email to client
       try {
         const sendMail = (await import('../../utils/mailer')).default;
-        const AppointmentUtils = (
-          await import('./appointment.utils')
-        ).default;
+        const AppointmentUtils = (await import('./appointment.utils')).default;
 
         const emailBody = AppointmentUtils.createAppointmentConfirmationEmail({
           clientName: `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`,
@@ -807,10 +804,7 @@ const CreateManualAppointment = async (
         console.error('Error sending confirmation email:', emailError);
       }
     } catch (error) {
-      console.error(
-        'Error in post-appointment creation tasks:',
-        error,
-      );
+      console.error('Error in post-appointment creation tasks:', error);
     }
   });
 

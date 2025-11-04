@@ -5,7 +5,10 @@ interface IDashboardQuery {
   date?: string;
 }
 
-const GetCounselorDashboard = async (counselorId: string, query: IDashboardQuery) => {
+const GetCounselorDashboard = async (
+  counselorId: string,
+  query: IDashboardQuery,
+) => {
   // Default to current date if no date provided
   let dateString: string;
 
@@ -79,10 +82,12 @@ const GetCounselorDashboard = async (counselorId: string, query: IDashboardQuery
       email: appointment.client.email,
       phone: appointment.client.phone,
     },
-    meeting: appointment.meeting ? {
-      platform: appointment.meeting.platform,
-      link: appointment.meeting.link,
-    } : null,
+    meeting: appointment.meeting
+      ? {
+          platform: appointment.meeting.platform,
+          link: appointment.meeting.link,
+        }
+      : null,
     notes: appointment.notes,
   }));
 
@@ -97,7 +102,8 @@ const GetCounselorDashboard = async (counselorId: string, query: IDashboardQuery
     },
     bySessionType: {
       online: appointments.filter((a) => a.session_type === 'ONLINE').length,
-      inPerson: appointments.filter((a) => a.session_type === 'IN_PERSON').length,
+      inPerson: appointments.filter((a) => a.session_type === 'IN_PERSON')
+        .length,
     },
   };
 
@@ -198,10 +204,12 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
         email: appointment.client.email,
         phone: appointment.client.phone,
       },
-      meeting: appointment.meeting ? {
-        platform: appointment.meeting.platform,
-        link: appointment.meeting.link,
-      } : null,
+      meeting: appointment.meeting
+        ? {
+            platform: appointment.meeting.platform,
+            link: appointment.meeting.link,
+          }
+        : null,
       notes: appointment.notes,
     }));
 
@@ -237,7 +245,9 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
   const statistics = {
     totalAppointments,
     totalCounselors: counselors.length,
-    counselorsWithBookings: formattedCounselors.filter((c) => c.bookingCount > 0).length,
+    counselorsWithBookings: formattedCounselors.filter(
+      (c) => c.bookingCount > 0,
+    ).length,
     byStatus: {
       pending: allAppointments.filter((a) => a.status === 'PENDING').length,
       confirmed: allAppointments.filter((a) => a.status === 'CONFIRMED').length,
@@ -246,19 +256,21 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
     },
     bySessionType: {
       online: allAppointments.filter((a) => a.sessionType === 'ONLINE').length,
-      inPerson: allAppointments.filter((a) => a.sessionType === 'IN_PERSON').length,
+      inPerson: allAppointments.filter((a) => a.sessionType === 'IN_PERSON')
+        .length,
     },
   };
 
   return {
     date: dateString,
     counselors: formattedCounselors,
-    topCounselor: counselorWithHighestBookings.bookingCount > 0
-      ? {
-          counselor: counselorWithHighestBookings.counselor,
-          bookingCount: counselorWithHighestBookings.bookingCount,
-        }
-      : null,
+    topCounselor:
+      counselorWithHighestBookings.bookingCount > 0
+        ? {
+            counselor: counselorWithHighestBookings.counselor,
+            bookingCount: counselorWithHighestBookings.bookingCount,
+          }
+        : null,
     statistics,
   };
 };

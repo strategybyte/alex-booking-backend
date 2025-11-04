@@ -8,45 +8,52 @@ import PayoutValidation from './payout.validation';
 const router = Router();
 
 // Routes for counsellors
-router.post('/request', 
-  auth(Role.COUNSELOR), 
+router.post(
+  '/request',
+  auth(Role.COUNSELOR),
   validateRequest(PayoutValidation.createPayoutRequestSchema),
-  PayoutController.createPayoutRequest
+  PayoutController.createPayoutRequest,
 );
 
-router.get('/my-requests', 
-  auth(Role.COUNSELOR), 
+router.get(
+  '/my-requests',
+  auth(Role.COUNSELOR),
   validateRequest(PayoutValidation.counsellorPayoutFiltersSchema),
-  PayoutController.getMyPayoutRequests
+  PayoutController.getMyPayoutRequests,
 );
 
 // Routes for super admin
-router.get('/all', 
-  auth(Role.SUPER_ADMIN), 
+router.get(
+  '/all',
+  auth(Role.SUPER_ADMIN),
   validateRequest(PayoutValidation.payoutFiltersSchema),
-  PayoutController.getAllPayoutRequests
+  PayoutController.getAllPayoutRequests,
 );
 
-router.get('/:id', 
-  auth(Role.SUPER_ADMIN), 
-  PayoutController.getPayoutRequestById
+router.get(
+  '/:id',
+  auth(Role.SUPER_ADMIN),
+  PayoutController.getPayoutRequestById,
 );
 
-router.get('/counsellor/:counsellor_id', 
-  auth(Role.SUPER_ADMIN), 
+router.get(
+  '/counsellor/:counsellor_id',
+  auth(Role.SUPER_ADMIN),
   validateRequest(PayoutValidation.counsellorPayoutFiltersSchema),
-  PayoutController.getCounsellorPayoutRequests
+  PayoutController.getCounsellorPayoutRequests,
 );
 
-router.patch('/:id/process', 
-  auth(Role.SUPER_ADMIN), 
+router.patch(
+  '/:id/process',
+  auth(Role.SUPER_ADMIN),
   validateRequest(PayoutValidation.processPayoutRequestSchema),
-  PayoutController.processPayoutRequest
+  PayoutController.processPayoutRequest,
 );
 
-router.post('/:id/execute', 
-  auth(Role.SUPER_ADMIN), 
-  PayoutController.executePayout
+router.post(
+  '/:id/execute',
+  auth(Role.SUPER_ADMIN),
+  PayoutController.executePayout,
 );
 
 export const PayoutRoutes = router;

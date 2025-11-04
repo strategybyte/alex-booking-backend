@@ -150,12 +150,16 @@ const createAppointmentConfirmationEmail = (
                     </div>
                 </div>
 
-                ${data.meetingLink && data.sessionType === 'ONLINE' ? `
+                ${
+                  data.meetingLink && data.sessionType === 'ONLINE'
+                    ? `
                 <div class="meeting-link">
                     <p style="margin: 0 0 10px 0; font-weight: bold;">Join your online session:</p>
                     <a href="${data.meetingLink}" target="_blank">${data.meetingLink}</a>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
 
                 <div class="note">
                     <strong>Important:</strong> Please join the meeting a few minutes early to ensure a smooth start to your session.

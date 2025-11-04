@@ -291,9 +291,19 @@ const CreateDateSlots = async (
 
     // Check for duplicates or overlaps with existing slots
     for (const existingSlot of existingSlots) {
-      if (doSlotsOverlap(slot.start_time, slot.end_time, existingSlot.start_time, existingSlot.end_time)) {
+      if (
+        doSlotsOverlap(
+          slot.start_time,
+          slot.end_time,
+          existingSlot.start_time,
+          existingSlot.end_time,
+        )
+      ) {
         // Check if it's an exact duplicate
-        if (slot.start_time === existingSlot.start_time && slot.end_time === existingSlot.end_time) {
+        if (
+          slot.start_time === existingSlot.start_time &&
+          slot.end_time === existingSlot.end_time
+        ) {
           throw new AppError(
             httpStatus.BAD_REQUEST,
             `Duplicate slot detected. A slot from ${slot.start_time} to ${slot.end_time} already exists on this date.`,
@@ -314,10 +324,7 @@ const CreateDateSlots = async (
   });
 
   if (!counselorSettings) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      'Counselor settings not found',
-    );
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
   }
 
   // Calculate total slots after adding new ones (using already-fetched existingSlots)
@@ -325,7 +332,10 @@ const CreateDateSlots = async (
   const totalSlotsAfter = existingSlotsCount + slots.data.length;
 
   // If this is the first time adding slots (no existing slots), enforce minimum
-  if (existingSlotsCount === 0 && slots.data.length < counselorSettings.minimum_slots_per_day) {
+  if (
+    existingSlotsCount === 0 &&
+    slots.data.length < counselorSettings.minimum_slots_per_day
+  ) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       `Minimum ${counselorSettings.minimum_slots_per_day} slots per day required. Only ${slots.data.length} slots provided.`,
@@ -333,8 +343,9 @@ const CreateDateSlots = async (
   }
 
   // Log info for tracking (optional - can help with debugging)
-  console.log(`Calendar ${calendarId}: Adding ${slots.data.length} slots. Total will be ${totalSlotsAfter}`);
-
+  console.log(
+    `Calendar ${calendarId}: Adding ${slots.data.length} slots. Total will be ${totalSlotsAfter}`,
+  );
 
   const result = await prisma.timeSlot.createMany({
     data: slots.data.map((item) => ({
@@ -375,10 +386,7 @@ const CreateSlotsWithCalendarDate = async (
     });
 
     if (!counselorSettings) {
-      throw new AppError(
-        httpStatus.NOT_FOUND,
-        'Counselor settings not found',
-      );
+      throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
     }
 
     const minSlotsPerDay = counselorSettings.minimum_slots_per_day;
@@ -418,8 +426,18 @@ const CreateSlotsWithCalendarDate = async (
       // Check for duplicates within the same request (same day)
       for (let i = 0; i < day.slots.length; i++) {
         for (let j = i + 1; j < day.slots.length; j++) {
-          if (doSlotsOverlap(day.slots[i].start_time, day.slots[i].end_time, day.slots[j].start_time, day.slots[j].end_time)) {
-            if (day.slots[i].start_time === day.slots[j].start_time && day.slots[i].end_time === day.slots[j].end_time) {
+          if (
+            doSlotsOverlap(
+              day.slots[i].start_time,
+              day.slots[i].end_time,
+              day.slots[j].start_time,
+              day.slots[j].end_time,
+            )
+          ) {
+            if (
+              day.slots[i].start_time === day.slots[j].start_time &&
+              day.slots[i].end_time === day.slots[j].end_time
+            ) {
               throw new AppError(
                 httpStatus.BAD_REQUEST,
                 `Duplicate slots in request. Multiple slots with time ${day.slots[i].start_time} to ${day.slots[i].end_time} on ${day.date}.`,
@@ -477,8 +495,18 @@ const CreateSlotsWithCalendarDate = async (
         // Check for overlaps/duplicates with existing slots
         for (const newSlot of day.slots) {
           for (const existingSlot of existingSlots) {
-            if (doSlotsOverlap(newSlot.start_time, newSlot.end_time, existingSlot.start_time, existingSlot.end_time)) {
-              if (newSlot.start_time === existingSlot.start_time && newSlot.end_time === existingSlot.end_time) {
+            if (
+              doSlotsOverlap(
+                newSlot.start_time,
+                newSlot.end_time,
+                existingSlot.start_time,
+                existingSlot.end_time,
+              )
+            ) {
+              if (
+                newSlot.start_time === existingSlot.start_time &&
+                newSlot.end_time === existingSlot.end_time
+              ) {
                 throw new AppError(
                   httpStatus.BAD_REQUEST,
                   `Duplicate slot detected. A slot from ${newSlot.start_time} to ${newSlot.end_time} already exists on ${day.date}.`,
@@ -623,10 +651,7 @@ const DeleteTimeSlot = async (counselorId: string, slotId: string) => {
   });
 
   if (!counselorSettings) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      'Counselor settings not found',
-    );
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
   }
 
   // Count current slots for this calendar date

@@ -48,10 +48,7 @@ app.get('/health', (_req, res) => {
 //global error handler
 app.use(globalErrorHandler);
 
-
 // handle not found routes
 app.use(notFound);
-
-
 
 export default app;

@@ -38,20 +38,18 @@ const CreateCalendarWithSlotsSchema = z.object({
   body: z
     .object({
       // Support single date + slots format
-      date: z
-        .string()
-        .refine(
-          (date) => {
-            const inputDate = new Date(date);
-            inputDate.setHours(0, 0, 0, 0);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return inputDate >= today;
-          },
-          {
-            message: 'Cannot create calendar for past dates',
-          },
-        ),
+      date: z.string().refine(
+        (date) => {
+          const inputDate = new Date(date);
+          inputDate.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return inputDate >= today;
+        },
+        {
+          message: 'Cannot create calendar for past dates',
+        },
+      ),
       slots: z.array(
         z.object({
           start_time: z.string(),
@@ -65,20 +63,18 @@ const CreateCalendarWithSlotsSchema = z.object({
       z.object({
         data: z.array(
           z.object({
-            date: z
-              .string()
-              .refine(
-                (date) => {
-                  const inputDate = new Date(date);
-                  inputDate.setHours(0, 0, 0, 0);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  return inputDate >= today;
-                },
-                {
-                  message: 'Cannot create calendar for past dates',
-                },
-              ),
+            date: z.string().refine(
+              (date) => {
+                const inputDate = new Date(date);
+                inputDate.setHours(0, 0, 0, 0);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return inputDate >= today;
+              },
+              {
+                message: 'Cannot create calendar for past dates',
+              },
+            ),
             slots: z.array(
               z.object({
                 start_time: z.string(),

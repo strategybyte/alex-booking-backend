@@ -5,8 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "start": "node ./dist/server.js",
     "build": "tsc",
+    "start": "node dist/server.js",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
@@ -15,9 +15,7 @@
     "migrate": "npx prisma migrate dev",
     "studio": "npx prisma studio",
     "seed": "ts-node prisma/seed.ts",
-    "db:reset": "npx prisma migrate reset",
-    "backfill:counselor-settings": "ts-node scripts/backfill-counselor-settings.ts",
-    "postinstall": "prisma generate"
+    "db:reset": "npx prisma migrate reset"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.844.0",

@@ -84,7 +84,10 @@ const GetSlotsWithCalendarDate = catchAsync(async (req, res) => {
 });
 
 const DeleteTimeSlot = catchAsync(async (req, res) => {
-  const result = await CalendarService.DeleteTimeSlot(req.user.id, req.params.slotId);
+  const result = await CalendarService.DeleteTimeSlot(
+    req.user.id,
+    req.params.slotId,
+  );
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,

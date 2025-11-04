@@ -47,15 +47,24 @@ const ChangePasswordSchema = z.object({
 
 const UpdateProfileSchema = z.object({
   body: z.object({
-    name: z.string({
-      invalid_type_error: 'Name must be a string',
-    }).optional(),
-    specialization: z.string({
-      invalid_type_error: 'Specialization must be a string',
-    }).optional(),
+    name: z
+      .string({
+        invalid_type_error: 'Name must be a string',
+      })
+      .optional(),
+    specialization: z
+      .string({
+        invalid_type_error: 'Specialization must be a string',
+      })
+      .optional(),
   }),
 });
 
-const AuthValidation = { LoginSchema, ChangePasswordSchema, RegisterSchema, UpdateProfileSchema };
+const AuthValidation = {
+  LoginSchema,
+  ChangePasswordSchema,
+  RegisterSchema,
+  UpdateProfileSchema,
+};
 
 export default AuthValidation;

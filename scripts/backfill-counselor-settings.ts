@@ -67,7 +67,9 @@ async function backfillCounselorSettings() {
 
     console.log('\n=== Backfill Summary ===');
     console.log(`Total counselors: ${counselors.length}`);
-    console.log(`Already had settings: ${counselors.length - counselorsWithoutSettings.length}`);
+    console.log(
+      `Already had settings: ${counselors.length - counselorsWithoutSettings.length}`,
+    );
     console.log(`Successfully created: ${successCount}`);
     console.log(`Failed: ${failCount}`);
     console.log('========================\n');

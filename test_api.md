@@ -1,24 +1,29 @@
 # Manual Appointment Creation API
 
 ## Endpoint
+
 ```
 POST /api/appointments
 ```
 
 ## Scope (Who can use this API)
+
 - **COUNSELOR** - Can create appointments for their own clients
 - **SUPER_ADMIN** - Can create appointments for any counselor
 
 ## Authentication Required
+
 Yes - Bearer token required in Authorization header
 
 ## Request Headers
+
 ```
 Authorization: Bearer <your_jwt_token>
 Content-Type: application/json
 ```
 
 ## Request Body (JSON)
+
 ```json
 {
   "firstName": "John",
@@ -52,28 +57,27 @@ Body (raw JSON):
 ## How This Affects Slot Creation/Deletion
 
 ### When Creating Slots:
+
 - System validates that counselor provides at least the minimum number of slots per day
 - If counselor tries to create 5 slots but minimum is 10, request will fail
 
 ### When Deleting Slots:
+
 - System checks if deletion would bring total slots below minimum
 - Example: If minimum is 6 and calendar has 6 slots, cannot delete any
 - Error message shows current count and minimum requirement
 
 ## Testing Tips
+
 1. You must be logged in as SUPER_ADMIN to use this endpoint
 2. The counselorId in the URL must be a valid UUID
 3. minimum_slots_per_day must be a number between 1 and 50
 4. Default value is 6 when counselor is first created
 5. Each counselor can have different minimum requirements
 
-
-
-
-
 # Dashbaord
 
-GET /api/v1/dashboard/?date=2025-11-04 
+GET /api/v1/dashboard/?date=2025-11-04
 (if prev and next days user wants to dy defulat current date)
 
 ### As Super Admin [Response]
@@ -163,9 +167,6 @@ GET /api/v1/dashboard/?date=2025-11-04
 
 ```
 
-
-
-
 # As Counselor
 
 ```
@@ -194,5 +195,3 @@ GET /api/v1/dashboard/?date=2025-11-04
 }
 
 ```
-
-

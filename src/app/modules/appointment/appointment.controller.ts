@@ -95,7 +95,8 @@ const CreateManualAppointment = catchAsync(async (req, res) => {
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.CREATED,
-    message: 'Appointment created successfully. Confirmation email sent to client.',
+    message:
+      'Appointment created successfully. Confirmation email sent to client.',
     data: result,
   });
 });

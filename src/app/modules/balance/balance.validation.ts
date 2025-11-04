@@ -21,34 +21,36 @@ const adjustBalanceSchema = z.object({
 });
 
 const setBalanceValuesSchema = z.object({
-  body: z.object({
-    current_balance: z
-      .number({
-        invalid_type_error: 'Current balance must be a number',
-      })
-      .min(0, 'Current balance cannot be negative')
-      .optional(),
-    total_earned: z
-      .number({
-        invalid_type_error: 'Total earned must be a number',
-      })
-      .min(0, 'Total earned cannot be negative')
-      .optional(),
-    total_withdrawn: z
-      .number({
-        invalid_type_error: 'Total withdrawn must be a number',
-      })
-      .min(0, 'Total withdrawn cannot be negative')
-      .optional(),
-  }).refine(
-    (data) => 
-      data.current_balance !== undefined || 
-      data.total_earned !== undefined || 
-      data.total_withdrawn !== undefined,
-    {
-      message: 'At least one balance field must be provided',
-    }
-  ),
+  body: z
+    .object({
+      current_balance: z
+        .number({
+          invalid_type_error: 'Current balance must be a number',
+        })
+        .min(0, 'Current balance cannot be negative')
+        .optional(),
+      total_earned: z
+        .number({
+          invalid_type_error: 'Total earned must be a number',
+        })
+        .min(0, 'Total earned cannot be negative')
+        .optional(),
+      total_withdrawn: z
+        .number({
+          invalid_type_error: 'Total withdrawn must be a number',
+        })
+        .min(0, 'Total withdrawn cannot be negative')
+        .optional(),
+    })
+    .refine(
+      (data) =>
+        data.current_balance !== undefined ||
+        data.total_earned !== undefined ||
+        data.total_withdrawn !== undefined,
+      {
+        message: 'At least one balance field must be provided',
+      },
+    ),
 });
 
 const balanceFiltersSchema = z.object({

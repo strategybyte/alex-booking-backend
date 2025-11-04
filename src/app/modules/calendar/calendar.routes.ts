@@ -34,8 +34,6 @@ router
     CalendarController.PostDateSlots,
   );
 
-router
-  .route('/slots/:slotId')
-  .delete(CalendarController.DeleteTimeSlot);
+router.route('/slots/:slotId').delete(CalendarController.DeleteTimeSlot);
 
 export const CalendarRoutes = router;
