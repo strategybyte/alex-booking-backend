@@ -244,6 +244,7 @@ interface CreateSlotsPayload {
 const CreateDateSlots = async (
   calendarId: string,
   slots: CreateSlotsPayload,
+  userRole: string,
 ) => {
   // Get the calendar and counselor info
   const calendar = await prisma.calendar.findUnique({
@@ -332,7 +333,9 @@ const CreateDateSlots = async (
   const totalSlotsAfter = existingSlotsCount + slots.data.length;
 
   // If this is the first time adding slots (no existing slots), enforce minimum
+  // Skip minimum validation if user is SUPER_ADMIN
   if (
+    userRole !== 'SUPER_ADMIN' &&
     existingSlotsCount === 0 &&
     slots.data.length < counselorSettings.minimum_slots_per_day
   ) {
@@ -378,6 +381,7 @@ type CalendarPayload = { data: DaySlots[] };
 const CreateSlotsWithCalendarDate = async (
   counselorId: string,
   slots: CalendarPayload,
+  userRole: string,
 ) => {
   const result = await prisma.$transaction(async (tx) => {
     // Fetch counselor settings to get minimum slots requirement
@@ -467,7 +471,8 @@ const CreateSlotsWithCalendarDate = async (
 
       if (!calendar) {
         // Creating new calendar - validate minimum requirement
-        if (day.slots.length < minSlotsPerDay) {
+        // Skip minimum validation if user is SUPER_ADMIN
+        if (userRole !== 'SUPER_ADMIN' && day.slots.length < minSlotsPerDay) {
           throw new AppError(
             httpStatus.BAD_REQUEST,
             `Minimum ${minSlotsPerDay} slots per day required. Only ${day.slots.length} slots provided for ${day.date}`,
@@ -522,8 +527,9 @@ const CreateSlotsWithCalendarDate = async (
         }
 
         // Check if total slots (existing + new) meets minimum requirement
+        // Skip minimum validation if user is SUPER_ADMIN
         const totalSlots = existingSlotsCount + day.slots.length;
-        if (totalSlots < minSlotsPerDay) {
+        if (userRole !== 'SUPER_ADMIN' && totalSlots < minSlotsPerDay) {
           throw new AppError(
             httpStatus.BAD_REQUEST,
             `Minimum ${minSlotsPerDay} slots per day required. Calendar has ${existingSlotsCount} slots, adding ${day.slots.length} would result in ${totalSlots} slots for ${day.date}`,
@@ -616,7 +622,11 @@ const GetSlotsWithCalendarDate = async (counselorId: string) => {
   return transformedCalendars;
 };
 
-const DeleteTimeSlot = async (counselorId: string, slotId: string) => {
+const DeleteTimeSlot = async (
+  counselorId: string,
+  slotId: string,
+  userRole: string,
+) => {
   // First verify that the slot belongs to the counselor
   const slot = await prisma.timeSlot.findFirst({
     where: {
@@ -646,27 +656,30 @@ const DeleteTimeSlot = async (counselorId: string, slotId: string) => {
   }
 
   // Check minimum slots requirement before deletion
-  const counselorSettings = await prisma.counselorSettings.findUnique({
-    where: { counselor_id: counselorId },
-  });
+  // Skip minimum validation if user is SUPER_ADMIN
+  if (userRole !== 'SUPER_ADMIN') {
+    const counselorSettings = await prisma.counselorSettings.findUnique({
+      where: { counselor_id: counselorId },
+    });
 
-  if (!counselorSettings) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
-  }
+    if (!counselorSettings) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
+    }
 
-  // Count current slots for this calendar date
-  const currentSlotsCount = await prisma.timeSlot.count({
-    where: {
-      calendar_id: slot.calendar_id,
-    },
-  });
+    // Count current slots for this calendar date
+    const currentSlotsCount = await prisma.timeSlot.count({
+      where: {
+        calendar_id: slot.calendar_id,
+      },
+    });
 
-  // Check if deletion would violate minimum requirement
-  if (currentSlotsCount - 1 < counselorSettings.minimum_slots_per_day) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      `Cannot delete slot. Minimum ${counselorSettings.minimum_slots_per_day} slots per day required. Currently ${currentSlotsCount} slots exist.`,
-    );
+    // Check if deletion would violate minimum requirement
+    if (currentSlotsCount - 1 < counselorSettings.minimum_slots_per_day) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Cannot delete slot. Minimum ${counselorSettings.minimum_slots_per_day} slots per day required. Currently ${currentSlotsCount} slots exist.`,
+      );
+    }
   }
 
   // Delete the slot

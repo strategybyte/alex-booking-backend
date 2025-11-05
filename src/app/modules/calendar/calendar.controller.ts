@@ -36,7 +36,11 @@ const GetDateSlots = catchAsync(async (req, res) => {
 });
 
 const PostDateSlots = catchAsync(async (req, res) => {
-  const result = await CalendarService.CreateDateSlots(req.params.id, req.body);
+  const result = await CalendarService.CreateDateSlots(
+    req.params.id,
+    req.body,
+    req.user.role,
+  );
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.CREATED,
@@ -64,6 +68,7 @@ const PostSlotsWithCalendarDate = catchAsync(async (req, res) => {
   const result = await CalendarService.CreateSlotsWithCalendarDate(
     req.user.id,
     payload,
+    req.user.role,
   );
   sendResponse(res, {
     success: true,
@@ -87,6 +92,7 @@ const DeleteTimeSlot = catchAsync(async (req, res) => {
   const result = await CalendarService.DeleteTimeSlot(
     req.user.id,
     req.params.slotId,
+    req.user.role,
   );
   sendResponse(res, {
     success: true,
