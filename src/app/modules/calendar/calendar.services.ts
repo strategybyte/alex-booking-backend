@@ -319,30 +319,28 @@ const CreateDateSlots = async (
     }
   }
 
-  // Get counselor settings
-  const counselorSettings = await prisma.counselorSettings.findUnique({
-    where: { counselor_id: calendar.counselor_id },
-  });
-
-  if (!counselorSettings) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
-  }
-
   // Calculate total slots after adding new ones (using already-fetched existingSlots)
   const existingSlotsCount = existingSlots.length;
   const totalSlotsAfter = existingSlotsCount + slots.data.length;
 
   // If this is the first time adding slots (no existing slots), enforce minimum
   // Skip minimum validation if user is SUPER_ADMIN
-  if (
-    userRole !== 'SUPER_ADMIN' &&
-    existingSlotsCount === 0 &&
-    slots.data.length < counselorSettings.minimum_slots_per_day
-  ) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      `Minimum ${counselorSettings.minimum_slots_per_day} slots per day required. Only ${slots.data.length} slots provided.`,
-    );
+  if (userRole !== 'SUPER_ADMIN' && existingSlotsCount === 0) {
+    // Get counselor settings only if not superadmin
+    const counselorSettings = await prisma.counselorSettings.findUnique({
+      where: { counselor_id: calendar.counselor_id },
+    });
+
+    if (!counselorSettings) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
+    }
+
+    if (slots.data.length < counselorSettings.minimum_slots_per_day) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Minimum ${counselorSettings.minimum_slots_per_day} slots per day required. Only ${slots.data.length} slots provided.`,
+      );
+    }
   }
 
   // Log info for tracking (optional - can help with debugging)
@@ -384,16 +382,21 @@ const CreateSlotsWithCalendarDate = async (
   userRole: string,
 ) => {
   const result = await prisma.$transaction(async (tx) => {
-    // Fetch counselor settings to get minimum slots requirement
-    const counselorSettings = await tx.counselorSettings.findUnique({
-      where: { counselor_id: counselorId },
-    });
+    // Fetch counselor settings to get minimum slots requirement (only if not superadmin)
+    let minSlotsPerDay = 0;
 
-    if (!counselorSettings) {
-      throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
+    if (userRole !== 'SUPER_ADMIN') {
+      const counselorSettings = await tx.counselorSettings.findUnique({
+        where: { counselor_id: counselorId },
+      });
+
+      if (!counselorSettings) {
+        throw new AppError(httpStatus.NOT_FOUND, 'Counselor settings not found');
+      }
+
+      minSlotsPerDay = counselorSettings.minimum_slots_per_day;
     }
 
-    const minSlotsPerDay = counselorSettings.minimum_slots_per_day;
     const allSlots: any[] = [];
 
     for (const day of slots.data) {
