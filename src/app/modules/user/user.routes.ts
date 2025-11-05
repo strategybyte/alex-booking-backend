@@ -19,6 +19,8 @@ router.post(
 
 router.get('/counselors', auth(Role.SUPER_ADMIN), UserController.GetCounselors);
 
+router.get('/all-users', auth(Role.SUPER_ADMIN), UserController.GetAllUsers);
+
 router.patch(
   '/counselors/:counselorId/settings',
   auth(Role.SUPER_ADMIN),

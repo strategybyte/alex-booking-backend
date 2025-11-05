@@ -71,10 +71,29 @@ const UpdateCounselorSettings = catchAsync(async (req, res) => {
   });
 });
 
+const GetAllUsers = catchAsync(async (req, res) => {
+  const filters = pick(req.query, ['search']);
+  const paginationOptions = pick(req.query, [
+    'page',
+    'limit',
+    'sort_by',
+    'sort_order',
+  ]);
+  const result = await UserService.GetAllUsers(filters, paginationOptions);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Users retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
 export const UserController = {
   UpdateProfilePicture,
   UpdateProfile,
   CreateCounselor,
   GetCounselors,
   UpdateCounselorSettings,
+  GetAllUsers,
 };

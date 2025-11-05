@@ -195,3 +195,126 @@ GET /api/v1/dashboard/?date=2025-11-04
 }
 
 ```
+
+# Get All Users API
+
+## Endpoint
+
+```
+GET /api/v1/users/all-users
+```
+
+## Scope (Who can use this API)
+
+- **SUPER_ADMIN** - Only super admin can access this endpoint
+
+## Authentication Required
+
+Yes - Bearer token required in Authorization header
+
+## Request Headers
+
+```
+Authorization: Bearer <your_jwt_token>
+Content-Type: application/json
+```
+
+## Query Parameters (Optional)
+
+- `search` - Search by name or email (string)
+- `page` - Page number for pagination (number, default: 1)
+- `limit` - Number of items per page (number, default: 10)
+- `sort_by` - Sort field: name, email, or created_at (string, default: created_at)
+- `sort_order` - Sort order: asc or desc (string, default: desc)
+
+## Example Request
+
+```
+GET {baseUrl}/api/v1/users/all-users?page=1&limit=10&search=john&sort_by=name&sort_order=asc
+
+Headers:
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+## Response (Success - 200 OK)
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Users retrieved successfully",
+  "data": [
+    {
+      "id": "38ecce2d-3d81-4c18-b2bd-faf6b4da7b0b",
+      "name": "Tanvirul Hasan Arafat",
+      "email": "tanvirul.hasan342@gmail.com",
+      "specialization": "Mental Health Specialist",
+      "profile_picture": null,
+      "role": "COUNSELOR",
+      "created_at": "2025-11-01T10:30:00.000Z",
+      "updated_at": "2025-11-01T10:30:00.000Z"
+    },
+    {
+      "id": "f671bcbe-a45b-4b3e-b363-1f333bdecb91",
+      "name": "Admin User",
+      "email": "admin@example.com",
+      "specialization": null,
+      "profile_picture": null,
+      "role": "SUPER_ADMIN",
+      "created_at": "2025-11-01T09:00:00.000Z",
+      "updated_at": "2025-11-01T09:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "total": 15,
+    "page": 1,
+    "limit": 10
+  }
+}
+```
+
+## Response (Error - 403 Forbidden)
+
+If user is not SUPER_ADMIN:
+
+```json
+{
+  "success": false,
+  "message": "You don't have permission to access this route",
+  "errorMessages": [
+    {
+      "path": "",
+      "message": "You don't have permission to access this route"
+    }
+  ],
+  "stack": null
+}
+```
+
+## Response (Error - 401 Unauthorized)
+
+If token is invalid or missing:
+
+```json
+{
+  "success": false,
+  "message": "You're not authorized to access this route",
+  "errorMessages": [
+    {
+      "path": "",
+      "message": "You're not authorized to access this route"
+    }
+  ],
+  "stack": null
+}
+```
+
+## Testing Tips
+
+1. You must be logged in as SUPER_ADMIN to use this endpoint
+2. Returns both SUPER_ADMIN and COUNSELOR role users
+3. Only returns users where `is_deleted: false`
+4. Includes profile picture URL if available
+5. Search is case-insensitive and searches in both name and email fields
+6. Default pagination: page=1, limit=10
+7. Default sorting: by created_at in descending order (newest first)

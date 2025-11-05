@@ -280,10 +280,73 @@ const UpdateCounselorSettings = async (
   return updatedSettings;
 };
 
+const GetAllUsers = async (
+  filters: ICounselorFilters,
+  paginationOptions: IPaginationOptions,
+) => {
+  const { page, limit, skip, sort_by, sort_order } =
+    calculatePagination(paginationOptions);
+  const { search } = filters;
+
+  const whereConditions: Prisma.UserWhereInput = {
+    is_deleted: false,
+  };
+
+  if (search) {
+    whereConditions.OR = counselorSearchableFields.map((field) => ({
+      [field]: {
+        contains: search,
+        mode: 'insensitive' as Prisma.QueryMode,
+      },
+    }));
+  }
+
+  const orderBy: Prisma.UserOrderByWithRelationInput = {};
+
+  if (sort_by === 'name') {
+    orderBy.name = sort_order as Prisma.SortOrder;
+  } else if (sort_by === 'email') {
+    orderBy.email = sort_order as Prisma.SortOrder;
+  } else {
+    orderBy.created_at = sort_order as Prisma.SortOrder;
+  }
+
+  const total = await prisma.user.count({
+    where: whereConditions,
+  });
+
+  const users = await prisma.user.findMany({
+    where: whereConditions,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      specialization: true,
+      profile_picture: true,
+      role: true,
+      created_at: true,
+      updated_at: true,
+    },
+    orderBy,
+    skip,
+    take: limit,
+  });
+
+  return {
+    data: users,
+    meta: {
+      total,
+      page,
+      limit,
+    },
+  };
+};
+
 export const UserService = {
   UpdateProfilePicture,
   UpdateUserProfile,
   CreateCounselor,
   GetCounselors,
   UpdateCounselorSettings,
+  GetAllUsers,
 };
