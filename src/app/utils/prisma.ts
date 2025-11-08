@@ -1,21 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 
-// Environment-specific configuration
-const isVercel = process.env.VERCEL === '1';
-
 const prisma = new PrismaClient({});
 
-// Increase transaction timeout for serverless environments
-// This helps prevent timeout issues in Vercel
 prisma
   .$connect()
   .then(() => {
     console.log(
-      `Prisma client connected - Environment: ${process.env.NODE_ENV}, Vercel: ${isVercel}`,
+      `Prisma client connected - Environment: ${process.env.NODE_ENV}`,
     );
-    if (isVercel) {
-      console.log('Running in Vercel - using extended timeout configuration');
-    }
   })
   .catch((error) => {
     console.error('Failed to connect to database:', error);
