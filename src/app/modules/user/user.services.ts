@@ -232,6 +232,11 @@ const GetCounselors = async (
       role: true,
       created_at: true,
       updated_at: true,
+      counselor_settings: {
+        select: {
+          minimum_slots_per_day: true,
+        },
+      },
     },
     orderBy,
     skip,

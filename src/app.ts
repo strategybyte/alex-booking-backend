@@ -27,7 +27,9 @@ app.use(
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://admin-alexrodriguez.vercel.app',
+      'http://103.121.217.80:3316',
+      'http://103.121.217.80:3315',
+      'https://alex-admin.vercel.app/',
       'https://alex-rodriguez.vercel.app',
       'https://client-alexrodriguez.vercel.app',
     ],
