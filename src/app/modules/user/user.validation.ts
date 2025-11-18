@@ -33,13 +33,23 @@ const updateCounselorSettingsSchema = z.object({
   body: z.object({
     minimum_slots_per_day: z
       .number({
-        required_error: 'Minimum slots per day is required',
         invalid_type_error: 'Minimum slots per day must be a number',
       })
       .int('Minimum slots per day must be an integer')
       .min(1, 'Minimum slots per day must be at least 1')
-      .max(50, 'Minimum slots per day cannot exceed 50'),
-  }),
+      .max(50, 'Minimum slots per day cannot exceed 50')
+      .optional(),
+    approved_by_admin: z
+      .boolean({
+        invalid_type_error: 'Approved by admin must be a boolean',
+      })
+      .optional(),
+  }).refine(
+    (data) => data.minimum_slots_per_day !== undefined || data.approved_by_admin !== undefined,
+    {
+      message: 'At least one field (minimum_slots_per_day or approved_by_admin) must be provided',
+    }
+  ),
 });
 
 const UserValidation = {

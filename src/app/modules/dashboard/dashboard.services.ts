@@ -23,18 +23,15 @@ const GetCounselorDashboard = async (
     dateString = `${year}-${month}-${day}`;
   }
 
-  // Create date range for the selected day (in UTC)
-  const startOfDay = new Date(`${dateString}T00:00:00.000Z`);
-  const endOfDay = new Date(`${dateString}T23:59:59.999Z`);
+  // Create a proper Date object for querying PostgreSQL DATE field
+  const queryDate = new Date(dateString);
+  queryDate.setUTCHours(0, 0, 0, 0);
 
   // Get all appointments for the counselor on the selected date
   const appointments = await prisma.appointment.findMany({
     where: {
       counselor_id: counselorId,
-      date: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
+      date: queryDate,
       status: {
         not: 'DELETED',
       },
@@ -129,14 +126,16 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
     dateString = `${year}-${month}-${day}`;
   }
 
-  // Create date range for the selected day (in UTC)
-  const startOfDay = new Date(`${dateString}T00:00:00.000Z`);
-  const endOfDay = new Date(`${dateString}T23:59:59.999Z`);
+  // Create a proper Date object for querying PostgreSQL DATE field
+  const queryDate = new Date(dateString);
+  queryDate.setUTCHours(0, 0, 0, 0);
 
-  // Get all counselors with their appointments for the selected date
+  // Get all counselors (including super admins) with their appointments for the selected date
   const counselors = await prisma.user.findMany({
     where: {
-      role: Role.COUNSELOR,
+      role: {
+        in: [Role.COUNSELOR, Role.SUPER_ADMIN],
+      },
       is_deleted: false,
     },
     select: {
@@ -147,10 +146,7 @@ const GetSuperAdminDashboard = async (query: IDashboardQuery) => {
       profile_picture: true,
       appointments: {
         where: {
-          date: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
+          date: queryDate,
           status: {
             not: 'DELETED',
           },

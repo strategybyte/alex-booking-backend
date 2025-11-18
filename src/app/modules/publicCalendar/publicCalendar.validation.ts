@@ -16,9 +16,20 @@ const getCounselorSlotsSchema = z.object({
   }),
 });
 
+const checkAvailabilitySchema = z.object({
+  query: z.object({
+    datetime: z.string().regex(
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$/,
+      'Invalid datetime format. Expected format: YYYY-MM-DD HH:MM:SS UTC'
+    ),
+    timezone: z.string().min(1, 'Timezone is required (e.g., Asia/Kolkata, America/New_York, Australia/Sydney)'),
+  }),
+});
+
 const PublicCalendarValidation = {
   getCounselorCalendarSchema,
   getCounselorSlotsSchema,
+  checkAvailabilitySchema,
 };
 
 export default PublicCalendarValidation;

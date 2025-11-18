@@ -108,6 +108,7 @@ model CounselorSettings {
   id                      String   @id @default(uuid())
   counselor_id            String   @unique
   minimum_slots_per_day   Int      @default(6)
+  approved_by_admin       Boolean  @default(false)
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 

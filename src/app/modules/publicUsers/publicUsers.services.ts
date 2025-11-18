@@ -14,6 +14,12 @@ const GetPublicCounselors = async () => {
       role: true,
       specialization: true,
       profile_picture: true,
+      is_calendar_connected: true,
+      counselor_settings: {
+        select: {
+          approved_by_admin: true,
+        },
+      },
     },
     orderBy: [
       // Super admin first
@@ -71,7 +77,13 @@ const GetPublicCounselors = async () => {
       }
 
       return {
-        ...counselor,
+        id: counselor.id,
+        name: counselor.name,
+        role: counselor.role,
+        specialization: counselor.specialization,
+        profile_picture: counselor.profile_picture,
+        is_calendar_connected: counselor.is_calendar_connected,
+        approved_by_admin: counselor.counselor_settings?.approved_by_admin ?? false,
         next_available,
       };
     }),

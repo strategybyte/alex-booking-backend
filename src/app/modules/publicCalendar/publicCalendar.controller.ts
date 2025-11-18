@@ -31,9 +31,22 @@ const GetCounselorDateSlots = catchAsync(async (req, res) => {
   });
 });
 
+const CheckCounselorsAvailability = catchAsync(async (req, res) => {
+  const datetime = req.query.datetime as string;
+  const timezone = req.query.timezone as string;
+  const result = await PublicCalendarService.CheckCounselorsAvailability(datetime, timezone);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Counselors availability retrieved successfully',
+    data: result,
+  });
+});
+
 const PublicCalendarController = {
   GetCounselorCalendar,
   GetCounselorDateSlots,
+  CheckCounselorsAvailability,
 };
 
 export default PublicCalendarController;

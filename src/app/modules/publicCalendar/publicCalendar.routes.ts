@@ -5,6 +5,20 @@ import PublicCalendarValidation from './publicCalendar.validation';
 
 const router = express.Router();
 
+// Specific routes first (before parameterized routes)
+router.get(
+  '/check-availability',
+  validateRequest(PublicCalendarValidation.checkAvailabilitySchema),
+  PublicCalendarController.CheckCounselorsAvailability,
+);
+
+router.get(
+  '/slots/:calenderId',
+  validateRequest(PublicCalendarValidation.getCounselorSlotsSchema),
+  PublicCalendarController.GetCounselorDateSlots,
+);
+
+// Parameterized routes after specific routes
 router.get(
   '/:counselorId',
   validateRequest(PublicCalendarValidation.getCounselorCalendarSchema),
@@ -14,12 +28,6 @@ router.get(
 router.get(
   '/:counselorId/slots/:date',
   // validateRequest(PublicCalendarValidation.getCounselorCalendarSchema),
-  PublicCalendarController.GetCounselorDateSlots,
-);
-
-router.get(
-  '/slots/:calenderId',
-  validateRequest(PublicCalendarValidation.getCounselorSlotsSchema),
   PublicCalendarController.GetCounselorDateSlots,
 );
 

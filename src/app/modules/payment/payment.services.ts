@@ -255,9 +255,53 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
     // The payment is still successful, but balance needs manual adjustment
   }
 
-  // Create Google Calendar event after successful transaction
+  // Create Google Calendar event and send confirmation email after successful transaction
   try {
-    await createGoogleCalendarEvent(appointmentId);
+    const calendarResult = await createGoogleCalendarEvent(appointmentId);
+
+    // Send confirmation email to client
+    try {
+      // Get full appointment details for email
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          client: true,
+          counselor: true,
+          time_slot: true,
+        },
+      });
+
+      if (appointment) {
+        const sendMail = (await import('../../utils/mailer')).default;
+        const AppointmentUtils = (await import('../appointment/appointment.utils')).default;
+
+        const emailBody = AppointmentUtils.createAppointmentConfirmationEmail({
+          clientName: `${appointment.client.first_name} ${appointment.client.last_name}`,
+          counselorName: appointment.counselor.name,
+          appointmentDate: new Date(appointment.date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          appointmentTime: `${appointment.time_slot.start_time} - ${appointment.time_slot.end_time}`,
+          sessionType: appointment.session_type,
+          meetingLink: calendarResult?.meetingLink ?? undefined,
+          counselorId: appointment.counselor_id,
+        });
+
+        await sendMail(
+          appointment.client.email,
+          'Appointment Confirmed - Alexander Rodriguez Counseling',
+          emailBody,
+        );
+
+        console.log(`Confirmation email sent to ${appointment.client.email}`);
+      }
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+      // Don't fail the payment process if email fails
+    }
   } catch (error) {
     console.error('Error creating Google Calendar event:', error);
     // Don't fail the payment process if calendar creation fails

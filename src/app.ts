@@ -29,6 +29,8 @@ app.use(
       'http://localhost:3001',
       'http://103.121.217.80:3316',
       'http://103.121.217.80:3315',
+      'https://alex-booking-frontend.vercel.app',
+      'https://alex-booking-admin-frontend.vercel.app',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders:

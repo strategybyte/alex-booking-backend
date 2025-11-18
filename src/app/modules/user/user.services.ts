@@ -235,6 +235,7 @@ const GetCounselors = async (
       counselor_settings: {
         select: {
           minimum_slots_per_day: true,
+          approved_by_admin: true,
         },
       },
     },
@@ -255,7 +256,7 @@ const GetCounselors = async (
 
 const UpdateCounselorSettings = async (
   counselorId: string,
-  payload: { minimum_slots_per_day: number },
+  payload: { minimum_slots_per_day?: number; approved_by_admin?: boolean },
 ) => {
   // Check if counselor exists and has COUNSELOR role
   const counselor = await prisma.user.findUnique({
@@ -270,15 +271,23 @@ const UpdateCounselorSettings = async (
     throw new AppError(httpStatus.BAD_REQUEST, 'User is not a counselor');
   }
 
+  // Build update object with only provided fields
+  const updateData: { minimum_slots_per_day?: number; approved_by_admin?: boolean } = {};
+  if (payload.minimum_slots_per_day !== undefined) {
+    updateData.minimum_slots_per_day = payload.minimum_slots_per_day;
+  }
+  if (payload.approved_by_admin !== undefined) {
+    updateData.approved_by_admin = payload.approved_by_admin;
+  }
+
   // Update or create counselor settings
   const updatedSettings = await prisma.counselorSettings.upsert({
     where: { counselor_id: counselorId },
-    update: {
-      minimum_slots_per_day: payload.minimum_slots_per_day,
-    },
+    update: updateData,
     create: {
       counselor_id: counselorId,
-      minimum_slots_per_day: payload.minimum_slots_per_day,
+      minimum_slots_per_day: payload.minimum_slots_per_day ?? 6,
+      approved_by_admin: payload.approved_by_admin ?? false,
     },
   });
 
@@ -334,6 +343,7 @@ const GetAllUsers = async (
       counselor_settings: {
         select: {
           minimum_slots_per_day: true,
+          approved_by_admin: true,
         },
       },
     },
