@@ -52,10 +52,33 @@ const updateCounselorSettingsSchema = z.object({
   ),
 });
 
+const updateCounselorSchema = z.object({
+  body: z.object({
+    name: z
+      .string({
+        invalid_type_error: 'Name must be a string',
+      })
+      .min(1, 'Name cannot be empty')
+      .optional(),
+    specialization: z
+      .string({
+        invalid_type_error: 'Specialization must be a string',
+      })
+      .min(1, 'Specialization cannot be empty')
+      .optional(),
+  }).refine(
+    (data) => data.name !== undefined || data.specialization !== undefined,
+    {
+      message: 'At least one field (name or specialization) must be provided',
+    }
+  ),
+});
+
 const UserValidation = {
   updateProfileSchema,
   createCounselorSchema,
   updateCounselorSettingsSchema,
+  updateCounselorSchema,
 };
 
 export default UserValidation;

@@ -21,11 +21,24 @@ router.get('/counselors', auth(Role.SUPER_ADMIN), UserController.GetCounselors);
 
 router.get('/all-users', auth(Role.SUPER_ADMIN), UserController.GetAllUsers);
 
+router.get(
+  '/counselors/:counselorId',
+  auth(Role.SUPER_ADMIN),
+  UserController.GetCounselorById,
+);
+
 router.patch(
   '/counselors/:counselorId/settings',
   auth(Role.SUPER_ADMIN),
   validateRequest(UserValidation.updateCounselorSettingsSchema),
   UserController.UpdateCounselorSettings,
+);
+
+router.patch(
+  '/counselors/:counselorId',
+  auth(Role.SUPER_ADMIN),
+  validateRequest(UserValidation.updateCounselorSchema),
+  UserController.UpdateCounselor,
 );
 
 // Routes that require SUPER_ADMIN or COUNSELOR access

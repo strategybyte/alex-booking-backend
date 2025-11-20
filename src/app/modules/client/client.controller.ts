@@ -43,9 +43,26 @@ const GetClientDetailsWithHistory = catchAsync(async (req, res) => {
   });
 });
 
+const UpdateClient = catchAsync(async (req, res) => {
+  const result = await ClientService.UpdateClient(
+    req.params.clientId,
+    req.user.id,
+    req.user.role,
+    req.body,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Client updated successfully',
+    data: result,
+  });
+});
+
 const ClientController = {
   GetCounselorClients,
   GetClientDetailsWithHistory,
+  UpdateClient,
 };
 
 export default ClientController;

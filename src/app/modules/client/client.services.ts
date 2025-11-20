@@ -267,9 +267,109 @@ const GetClientDetailsWithHistory = async (
   return formattedClient;
 };
 
+const UpdateClient = async (
+  clientId: string,
+  userId: string,
+  userRole: string,
+  payload: {
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    date_of_birth?: string | Date;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  },
+) => {
+  // Check if client exists
+  const client = await prisma.client.findUnique({
+    where: { id: clientId, is_deleted: false },
+  });
+
+  if (!client) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Client not found');
+  }
+
+  // If user is a counselor, verify they have appointments with this client
+  if (userRole === 'COUNSELOR') {
+    const hasAppointment = await prisma.appointment.findFirst({
+      where: {
+        client_id: clientId,
+        counselor_id: userId,
+        status: {
+          not: 'PENDING',
+        },
+      },
+    });
+
+    if (!hasAppointment) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        'You do not have permission to update this client',
+      );
+    }
+  }
+
+  // Build update object with only provided fields
+  const updateData: {
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    date_of_birth?: Date;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  } = {};
+
+  if (payload.first_name !== undefined) {
+    updateData.first_name = payload.first_name;
+  }
+  if (payload.last_name !== undefined) {
+    updateData.last_name = payload.last_name;
+  }
+  if (payload.phone !== undefined) {
+    updateData.phone = payload.phone;
+  }
+  if (payload.date_of_birth !== undefined) {
+    updateData.date_of_birth = new Date(payload.date_of_birth);
+  }
+  if (payload.gender !== undefined) {
+    updateData.gender = payload.gender;
+  }
+
+  // Update client
+  const updatedClient = await prisma.client.update({
+    where: { id: clientId },
+    data: updateData,
+    select: {
+      id: true,
+      first_name: true,
+      last_name: true,
+      email: true,
+      phone: true,
+      date_of_birth: true,
+      gender: true,
+      is_verified: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+  // Format the response
+  return {
+    id: updatedClient.id,
+    firstName: updatedClient.first_name,
+    lastName: updatedClient.last_name,
+    email: updatedClient.email,
+    phone: updatedClient.phone,
+    dateOfBirth: updatedClient.date_of_birth,
+    gender: updatedClient.gender,
+    isVerified: updatedClient.is_verified,
+    createdAt: updatedClient.created_at,
+    updatedAt: updatedClient.updated_at,
+  };
+};
+
 const ClientService = {
   GetCounselorClientsById,
   GetClientDetailsWithHistory,
+  UpdateClient,
 };
 
 export default ClientService;

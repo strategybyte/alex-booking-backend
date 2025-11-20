@@ -811,6 +811,264 @@ const CreateManualAppointment = async (
   return appointment;
 };
 
+const CreateManualAppointmentWithPayment = async (
+  counselorId: string,
+  data: IManualAppointmentData & { amount: number; currency?: string },
+) => {
+  const TokenGenerator = (await import('../../utils/tokenGenerator')).default;
+
+  // Get counselor details first
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  // Check if time slot is available
+  const timeSlot = await prisma.timeSlot.findFirst({
+    where: {
+      id: data.timeSlotId,
+      status: 'AVAILABLE',
+    },
+    include: {
+      calendar: {
+        include: {
+          counselor: true,
+        },
+      },
+    },
+  });
+
+  if (!timeSlot) {
+    throw new AppError(
+      httpStatus.UNPROCESSABLE_ENTITY,
+      'Time slot is not available',
+    );
+  }
+
+  // Verify the session type matches the slot type
+  if (timeSlot.type !== data.sessionType) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Session type does not match the selected time slot type',
+    );
+  }
+
+  // Verify the counselor matches
+  if (timeSlot.calendar.counselor_id !== counselorId) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Time slot does not belong to this counselor',
+    );
+  }
+
+  // Generate payment token and expiry
+  const paymentToken = TokenGenerator.generatePaymentToken();
+  const paymentTokenExpiry = TokenGenerator.generateTokenExpiry(24); // 24 hours
+
+  // Create appointment with payment token in transaction
+  const appointment = await prisma.$transaction(
+    async (tx) => {
+      // Upsert client
+      const client = await tx.client.upsert({
+        where: {
+          email: data.email,
+        },
+        update: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone: data.phone,
+          date_of_birth: new Date(data.dateOfBirth).toISOString(),
+          gender: data.gender,
+        },
+        create: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          date_of_birth: new Date(data.dateOfBirth).toISOString(),
+          gender: data.gender,
+        },
+      });
+
+      // Create appointment with PENDING status and payment token
+      const [, newAppointment] = await Promise.all([
+        // Mark the time slot as PROCESSING (reserved but not booked)
+        tx.timeSlot.update({
+          where: { id: data.timeSlotId },
+          data: { status: 'PROCESSING' },
+        }),
+        // Create Appointment with PENDING status and payment token
+        tx.appointment.create({
+          data: {
+            client_id: client.id,
+            time_slot_id: data.timeSlotId,
+            counselor_id: counselorId,
+            date: new Date(data.date).toISOString(),
+            session_type: data.sessionType,
+            notes: data.notes || '',
+            status: 'PENDING', // Pending payment
+            payment_token: paymentToken,
+            payment_token_expiry: paymentTokenExpiry,
+            payment: {
+              create: {
+                client_id: client.id,
+                amount: data.amount,
+                currency: data.currency || 'AUD',
+                status: 'PENDING',
+              },
+            },
+          },
+          include: {
+            client: true,
+            counselor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            time_slot: true,
+            payment: {
+              select: {
+                amount: true,
+                currency: true,
+                status: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      return newAppointment;
+    },
+    {
+      timeout: 10000,
+      maxWait: 5000,
+    },
+  );
+
+  // Send payment link email asynchronously
+  setImmediate(async () => {
+    try {
+      const sendMail = (await import('../../utils/mailer')).default;
+      const AppointmentUtils = (await import('./appointment.utils')).default;
+      const config = (await import('../../config')).default;
+
+      // Construct payment link
+      const paymentLink = `${config.frontend_base_url}/payment/${paymentToken}`;
+
+      const emailBody = AppointmentUtils.createPaymentLinkEmail({
+        clientName: `${appointment.client.first_name} ${appointment.client.last_name}`,
+        counselorName: appointment.counselor.name,
+        appointmentDate: new Date(appointment.date).toLocaleDateString(
+          'en-US',
+          {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          },
+        ),
+        appointmentTime: `${appointment.time_slot.start_time} - ${appointment.time_slot.end_time}`,
+        sessionType: appointment.session_type,
+        amount: data.amount,
+        currency: data.currency || 'AUD',
+        paymentLink,
+        tokenExpiry: TokenGenerator.formatExpiryDate(paymentTokenExpiry),
+      });
+
+      await sendMail(
+        appointment.client.email,
+        'Complete Your Appointment Payment - Alexander Rodriguez Counseling',
+        emailBody,
+      );
+
+      console.log(
+        `Payment link email sent to ${appointment.client.email}`,
+      );
+    } catch (emailError) {
+      console.error('Error sending payment link email:', emailError);
+    }
+  });
+
+  return {
+    ...appointment,
+    paymentToken,
+    paymentLink: `${(await import('../../config')).default.frontend_base_url}/payment/${paymentToken}`,
+  };
+};
+
+const GetAppointmentByToken = async (token: string) => {
+  const TokenGenerator = (await import('../../utils/tokenGenerator')).default;
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { payment_token: token },
+    include: {
+      client: {
+        select: {
+          first_name: true,
+          last_name: true,
+          email: true,
+          phone: true,
+        },
+      },
+      counselor: {
+        select: {
+          name: true,
+          email: true,
+          specialization: true,
+        },
+      },
+      time_slot: {
+        select: {
+          start_time: true,
+          end_time: true,
+        },
+      },
+      payment: {
+        select: {
+          amount: true,
+          currency: true,
+          status: true,
+          transaction_id: true,
+          payment_gateway_data: true,
+        },
+      },
+    },
+  });
+
+  if (!appointment) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      'Appointment not found or invalid token',
+    );
+  }
+
+  // Check if token is expired
+  if (
+    appointment.payment_token_expiry &&
+    TokenGenerator.isTokenExpired(appointment.payment_token_expiry)
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Payment link has expired. Please contact support.',
+    );
+  }
+
+  // Check if already paid
+  if (appointment.status === 'CONFIRMED' || appointment.payment?.status === 'PAID') {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'This appointment has already been paid for.',
+    );
+  }
+
+  return appointment;
+};
+
 const AppointmentService = {
   GetCounselorAppointmentsById,
   GetCounselorAppointmentDetailsById,
@@ -818,6 +1076,8 @@ const AppointmentService = {
   CancelAppointmentById,
   RescheduleAppointmentById,
   CreateManualAppointment,
+  CreateManualAppointmentWithPayment,
+  GetAppointmentByToken,
 };
 
 export default AppointmentService;

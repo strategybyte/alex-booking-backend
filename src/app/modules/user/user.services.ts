@@ -254,6 +254,189 @@ const GetCounselors = async (
   };
 };
 
+const GetCounselorById = async (counselorId: string) => {
+  // Find the counselor by ID with all related information
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId, is_deleted: false },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      specialization: true,
+      profile_picture: true,
+      role: true,
+      is_calendar_connected: true,
+      is_stripe_connected: true,
+      stripe_onboarding_complete: true,
+      stripe_charges_enabled: true,
+      stripe_payouts_enabled: true,
+      created_at: true,
+      updated_at: true,
+      counselor_settings: {
+        select: {
+          minimum_slots_per_day: true,
+          approved_by_admin: true,
+        },
+      },
+      // Earnings information
+      counsellor_balance: {
+        select: {
+          current_balance: true,
+          total_earned: true,
+          total_withdrawn: true,
+          updated_at: true,
+        },
+      },
+      // Appointments with client and payment details
+      appointments: {
+        select: {
+          id: true,
+          date: true,
+          session_type: true,
+          status: true,
+          is_rescheduled: true,
+          notes: true,
+          created_at: true,
+          updated_at: true,
+          client: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              phone: true,
+              date_of_birth: true,
+              gender: true,
+              is_verified: true,
+            },
+          },
+          time_slot: {
+            select: {
+              start_time: true,
+              end_time: true,
+              type: true,
+            },
+          },
+          payment: {
+            select: {
+              id: true,
+              amount: true,
+              currency: true,
+              status: true,
+              payment_method: true,
+              processed_at: true,
+            },
+          },
+          meeting: {
+            select: {
+              platform: true,
+              link: true,
+            },
+          },
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      },
+      // Payout requests
+      payout_requests: {
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          requested_at: true,
+          processed_at: true,
+          rejection_reason: true,
+          notes: true,
+        },
+        orderBy: {
+          requested_at: 'desc',
+        },
+      },
+      // Balance transactions
+      balance_transactions: {
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          is_increase: true,
+          description: true,
+          reference_type: true,
+          balance_before: true,
+          balance_after: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take: 50, // Limit to last 50 transactions
+      },
+    },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  if (counselor.role !== Role.COUNSELOR) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'User is not a counselor');
+  }
+
+  // Get unique clients who have appointments with this counselor
+  const uniqueClients = await prisma.client.findMany({
+    where: {
+      appointments: {
+        some: {
+          counselor_id: counselorId,
+        },
+      },
+      is_deleted: false,
+    },
+    select: {
+      id: true,
+      first_name: true,
+      last_name: true,
+      email: true,
+      phone: true,
+      date_of_birth: true,
+      gender: true,
+      is_verified: true,
+      created_at: true,
+      _count: {
+        select: {
+          appointments: {
+            where: {
+              counselor_id: counselorId,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      created_at: 'desc',
+    },
+  });
+
+  // Calculate appointment statistics
+  const appointmentStats = {
+    total: counselor.appointments.length,
+    pending: counselor.appointments.filter((apt) => apt.status === 'PENDING')
+      .length,
+    confirmed: counselor.appointments.filter((apt) => apt.status === 'CONFIRMED')
+      .length,
+    completed: counselor.appointments.filter((apt) => apt.status === 'COMPLETED')
+      .length,
+    cancelled: counselor.appointments.filter((apt) => apt.status === 'CANCELLED')
+      .length,
+  };
+
+  return {
+    ...counselor,
+    clients: uniqueClients,
+    appointment_stats: appointmentStats,
+  };
+};
+
 const UpdateCounselorSettings = async (
   counselorId: string,
   payload: { minimum_slots_per_day?: number; approved_by_admin?: boolean },
@@ -292,6 +475,51 @@ const UpdateCounselorSettings = async (
   });
 
   return updatedSettings;
+};
+
+const UpdateCounselor = async (
+  counselorId: string,
+  payload: { name?: string; specialization?: string },
+) => {
+  // Check if counselor exists
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId, is_deleted: false },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  if (counselor.role !== Role.COUNSELOR) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'User is not a counselor');
+  }
+
+  // Build update object with only provided fields
+  const updateData: { name?: string; specialization?: string | null } = {};
+  if (payload.name !== undefined) {
+    updateData.name = payload.name;
+  }
+  if (payload.specialization !== undefined) {
+    updateData.specialization = payload.specialization;
+  }
+
+  // Update counselor
+  const updatedCounselor = await prisma.user.update({
+    where: { id: counselorId },
+    data: updateData,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      specialization: true,
+      profile_picture: true,
+      role: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+  return updatedCounselor;
 };
 
 const GetAllUsers = async (
@@ -367,6 +595,8 @@ export const UserService = {
   UpdateUserProfile,
   CreateCounselor,
   GetCounselors,
+  GetCounselorById,
   UpdateCounselorSettings,
+  UpdateCounselor,
   GetAllUsers,
 };

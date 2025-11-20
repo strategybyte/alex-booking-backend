@@ -57,6 +57,17 @@ const GetCounselors = catchAsync(async (req, res) => {
   });
 });
 
+const GetCounselorById = catchAsync(async (req, res) => {
+  const { counselorId } = req.params;
+  const result = await UserService.GetCounselorById(counselorId);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Counselor retrieved successfully',
+    data: result,
+  });
+});
+
 const UpdateCounselorSettings = catchAsync(async (req, res) => {
   const { counselorId } = req.params;
   const result = await UserService.UpdateCounselorSettings(
@@ -67,6 +78,17 @@ const UpdateCounselorSettings = catchAsync(async (req, res) => {
     success: true,
     statusCode: httpStatus.OK,
     message: 'Counselor settings updated successfully',
+    data: result,
+  });
+});
+
+const UpdateCounselor = catchAsync(async (req, res) => {
+  const { counselorId } = req.params;
+  const result = await UserService.UpdateCounselor(counselorId, req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Counselor updated successfully',
     data: result,
   });
 });
@@ -94,6 +116,8 @@ export const UserController = {
   UpdateProfile,
   CreateCounselor,
   GetCounselors,
+  GetCounselorById,
   UpdateCounselorSettings,
+  UpdateCounselor,
   GetAllUsers,
 };

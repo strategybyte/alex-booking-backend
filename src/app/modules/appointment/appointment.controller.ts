@@ -101,6 +101,34 @@ const CreateManualAppointment = catchAsync(async (req, res) => {
   });
 });
 
+const CreateManualAppointmentWithPayment = catchAsync(async (req, res) => {
+  const result = await AppointmentService.CreateManualAppointmentWithPayment(
+    req.user.id,
+    req.body,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.CREATED,
+    message:
+      'Appointment created successfully. Payment link sent to client via email.',
+    data: result,
+  });
+});
+
+const GetAppointmentByToken = catchAsync(async (req, res) => {
+  const { token } = req.query;
+
+  const result = await AppointmentService.GetAppointmentByToken(token as string);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Appointment details retrieved successfully',
+    data: result,
+  });
+});
+
 const AppointmentController = {
   GetCounselorAppointments,
   GetCounselorAppointmentDetailsById,
@@ -108,6 +136,8 @@ const AppointmentController = {
   CancelCounselorAppointmentById,
   RescheduleCounselorAppointmentById,
   CreateManualAppointment,
+  CreateManualAppointmentWithPayment,
+  GetAppointmentByToken,
 };
 
 export default AppointmentController;

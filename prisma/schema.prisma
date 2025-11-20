@@ -197,18 +197,20 @@ model Client {
 }
 
 model Appointment {
-  id             String            @id @default(uuid())
-  client_id      String
-  counselor_id   String
-  time_slot_id   String
-  session_type   SessionType
-  date           DateTime          @db.Date
-  notes          String?
-  status         AppointmentStatus @default(PENDING)
-  is_rescheduled Boolean           @default(false)
-  event_id       String? // Google Calendar event ID
-  created_at     DateTime          @default(now())
-  updated_at     DateTime          @updatedAt
+  id                   String            @id @default(uuid())
+  client_id            String
+  counselor_id         String
+  time_slot_id         String
+  session_type         SessionType
+  date                 DateTime          @db.Date
+  notes                String?
+  status               AppointmentStatus @default(PENDING)
+  is_rescheduled       Boolean           @default(false)
+  event_id             String? // Google Calendar event ID
+  payment_token        String?           @unique // For manual booking payment links
+  payment_token_expiry DateTime? // Token expiration (24 hours)
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
 
   // Relations
   client    Client   @relation(fields: [client_id], references: [id], onDelete: Restrict)
@@ -221,6 +223,7 @@ model Appointment {
   @@index([counselor_id])
   @@index([date])
   @@index([status])
+  @@index([payment_token])
   @@map("appointments")
 }
 

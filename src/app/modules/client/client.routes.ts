@@ -20,4 +20,11 @@ router.get(
   ClientController.GetClientDetailsWithHistory,
 );
 
+// Update client information
+router.patch(
+  '/:clientId',
+  validateRequest(ClientValidation.updateClientSchema),
+  ClientController.UpdateClient,
+);
+
 export const ClientRoutes = router;

@@ -14,6 +14,11 @@ router.post(
   validateRequest(AppointmentValidation.createManualAppointmentSchema),
   AppointmentController.CreateManualAppointment,
 );
+router.post(
+  '/with-payment',
+  validateRequest(AppointmentValidation.createManualAppointmentWithPaymentSchema),
+  AppointmentController.CreateManualAppointmentWithPayment,
+);
 router.get(
   '/',
   validateRequest(AppointmentValidation.getAppointmentsQuerySchema),
