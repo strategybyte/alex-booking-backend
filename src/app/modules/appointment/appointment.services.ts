@@ -624,7 +624,7 @@ const CreateManualAppointment = async (
         },
       });
 
-      // Create appointment and update time slot
+      // Create appointment, update time slot, and create counselor-client relationship
       const [, newAppointment] = await Promise.all([
         // Mark the time slot as BOOKED (manual appointments are immediately confirmed)
         tx.timeSlot.update({
@@ -653,6 +653,20 @@ const CreateManualAppointment = async (
             },
             time_slot: true,
           },
+        }),
+        // Create counselor-client relationship (if not exists)
+        tx.counselorClient.upsert({
+          where: {
+            counselor_id_client_id: {
+              counselor_id: counselorId,
+              client_id: client.id,
+            },
+          },
+          create: {
+            counselor_id: counselorId,
+            client_id: client.id,
+          },
+          update: {}, // No update needed if already exists
         }),
       ]);
 

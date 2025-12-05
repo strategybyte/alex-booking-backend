@@ -21,14 +21,11 @@ const GetCounselorClientsById = async (
     calculatePagination(paginationOptions);
   const { search, gender } = filters;
 
-  // Build where clause - clients who have appointments with this counselor
+  // Build where clause - clients who have a relationship with this counselor
   const whereConditions: Prisma.ClientWhereInput = {
-    appointments: {
+    counselor_clients: {
       some: {
         counselor_id,
-        status: {
-          not: 'PENDING',
-        },
       },
     },
     is_deleted: false,
@@ -128,17 +125,14 @@ const GetClientDetailsWithHistory = async (
   clientId: string,
   counselorId: string,
 ) => {
-  // First verify that the client has appointments with this counselor
+  // First verify that the client has a relationship with this counselor
   const clientExists = await prisma.client.findFirst({
     where: {
       id: clientId,
       is_deleted: false,
-      appointments: {
+      counselor_clients: {
         some: {
           counselor_id: counselorId,
-          status: {
-            not: 'PENDING',
-          },
         },
       },
     },
@@ -288,19 +282,16 @@ const UpdateClient = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Client not found');
   }
 
-  // If user is a counselor, verify they have appointments with this client
+  // If user is a counselor, verify they have a relationship with this client
   if (userRole === 'COUNSELOR') {
-    const hasAppointment = await prisma.appointment.findFirst({
+    const hasRelationship = await prisma.counselorClient.findFirst({
       where: {
         client_id: clientId,
         counselor_id: userId,
-        status: {
-          not: 'PENDING',
-        },
       },
     });
 
-    if (!hasAppointment) {
+    if (!hasRelationship) {
       throw new AppError(
         httpStatus.FORBIDDEN,
         'You do not have permission to update this client',

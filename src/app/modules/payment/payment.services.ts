@@ -171,6 +171,7 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
           appointment: {
             select: {
               counselor_id: true,
+              client_id: true,
               time_slot_id: true,
             },
           },
@@ -191,7 +192,7 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
       counsellorId = existingPayment.appointment.counselor_id;
       paymentAmount = Number(existingPayment.amount);
 
-      // Perform payment update, appointment confirmation, and time slot update in parallel
+      // Perform payment update, appointment confirmation, time slot update, and counselor-client relationship in parallel
       await Promise.all([
         // Update payment status
         tx.payment.update({
@@ -211,6 +212,20 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
         tx.timeSlot.update({
           where: { id: existingPayment.appointment.time_slot_id },
           data: { status: 'BOOKED' },
+        }),
+        // Create counselor-client relationship (if not exists)
+        tx.counselorClient.upsert({
+          where: {
+            counselor_id_client_id: {
+              counselor_id: existingPayment.appointment.counselor_id,
+              client_id: existingPayment.appointment.client_id,
+            },
+          },
+          create: {
+            counselor_id: existingPayment.appointment.counselor_id,
+            client_id: existingPayment.appointment.client_id,
+          },
+          update: {}, // No update needed if already exists
         }),
       ]);
     },

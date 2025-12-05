@@ -100,6 +100,7 @@ model User {
   payout_requests      PayoutRequest[]
   balance_transactions BalanceTransaction[]
   counselor_settings   CounselorSettings?
+  counselor_clients    CounselorClient[]
 
   @@map("users")
 }
@@ -188,12 +189,30 @@ model Client {
   updated_at    DateTime @updatedAt
 
   // Relations
-  appointments Appointment[]
-  payments     Payment[]
+  appointments      Appointment[]
+  payments          Payment[]
+  counselor_clients CounselorClient[]
 
   @@index([email])
   @@index([phone])
   @@map("clients")
+}
+
+model CounselorClient {
+  id           String   @id @default(uuid())
+  counselor_id String
+  client_id    String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Relations
+  counselor User   @relation(fields: [counselor_id], references: [id], onDelete: Cascade)
+  client    Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  @@unique([counselor_id, client_id])
+  @@index([counselor_id])
+  @@index([client_id])
+  @@map("counselor_clients")
 }
 
 model Appointment {
