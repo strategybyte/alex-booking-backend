@@ -31,6 +31,10 @@ app.use(
       'http://103.121.217.80:3315',
       'https://alex-booking-frontend.vercel.app',
       'https://alex-booking-admin-frontend.vercel.app',
+      'https://portal.alexrodriguez.com.au',
+      'https://www.alexrodriguez.com.au',
+      'https://alexrodriguez.com.au',
+      'https://new.alexrodriguez.com.au'
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders:
