@@ -18,6 +18,12 @@ async function main() {
       email: 'info@alexrodriguez.com.au',
       password: hashedPassword,
       role: Role.SUPER_ADMIN,
+      counselor_settings: {
+        create: {
+          approved_by_admin: true,
+          minimum_slots_per_day: 6,
+        },
+      },
     },
   });
 
