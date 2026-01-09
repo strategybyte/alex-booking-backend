@@ -274,7 +274,7 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
   try {
     const calendarResult = await createGoogleCalendarEvent(appointmentId);
 
-    // Send confirmation email to client
+    // Send confirmation email to client and notification to counselor
     try {
       // Get full appointment details for email
       const appointment = await prisma.appointment.findUnique({
@@ -290,31 +290,59 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
         const sendMail = (await import('../../utils/mailer')).default;
         const AppointmentUtils = (await import('../appointment/appointment.utils')).default;
 
-        const emailBody = AppointmentUtils.createAppointmentConfirmationEmail({
-          clientName: `${appointment.client.first_name} ${appointment.client.last_name}`,
+        const clientName = `${appointment.client.first_name} ${appointment.client.last_name}`;
+        const appointmentDate = new Date(appointment.date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        const appointmentTime = `${appointment.time_slot.start_time} - ${appointment.time_slot.end_time}`;
+        const meetingLink = calendarResult?.meetingLink ?? undefined;
+
+        // Email to client
+        const clientEmailBody = AppointmentUtils.createAppointmentConfirmationEmail({
+          clientName,
           counselorName: appointment.counselor.name,
-          appointmentDate: new Date(appointment.date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          }),
-          appointmentTime: `${appointment.time_slot.start_time} - ${appointment.time_slot.end_time}`,
+          appointmentDate,
+          appointmentTime,
           sessionType: appointment.session_type,
-          meetingLink: calendarResult?.meetingLink ?? undefined,
+          meetingLink,
           counselorId: appointment.counselor_id,
         });
 
-        await sendMail(
-          appointment.client.email,
-          'Appointment Confirmed - Alexander Rodriguez Counseling',
-          emailBody,
-        );
+        // Email to counselor
+        const counselorEmailBody = AppointmentUtils.createCounselorNotificationEmail({
+          counselorName: appointment.counselor.name,
+          clientName,
+          appointmentDate,
+          appointmentTime,
+          sessionType: appointment.session_type,
+          clientEmail: appointment.client.email,
+          clientPhone: appointment.client.phone,
+          meetingLink,
+          notes: appointment.notes ?? undefined,
+        });
 
-        console.log(`Confirmation email sent to ${appointment.client.email}`);
+        // Send both emails in parallel
+        await Promise.all([
+          sendMail(
+            appointment.client.email,
+            'Appointment Confirmed - Alexander Rodriguez Counseling',
+            clientEmailBody,
+          ),
+          sendMail(
+            appointment.counselor.email,
+            'New Appointment Scheduled - Alexander Rodriguez Counseling',
+            counselorEmailBody,
+          ),
+        ]);
+
+        console.log(`Confirmation email sent to client: ${appointment.client.email}`);
+        console.log(`Notification email sent to counselor: ${appointment.counselor.email}`);
       }
     } catch (emailError) {
-      console.error('Error sending confirmation email:', emailError);
+      console.error('Error sending confirmation emails:', emailError);
       // Don't fail the payment process if email fails
     }
   } catch (error) {
@@ -442,7 +470,7 @@ const createGoogleCalendarEvent = async (appointmentId: string) => {
     }
 
     // Define your business timezone - make this configurable
-    const businessTimeZone = 'Asia/Dhaka';
+    const businessTimeZone = 'Australia/Sydney';
 
     // Get the appointment date
     const appointmentDate = new Date(appointment.date);
@@ -487,11 +515,12 @@ const createGoogleCalendarEvent = async (appointmentId: string) => {
     const day = String(appointmentDate.getDate()).padStart(2, '0');
 
     // Create datetime strings in ISO format with explicit timezone offset
-    // Asia/Dhaka is UTC+6
-    const startTimeStr = `${year}-${month}-${day}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00+06:00`;
-    const endTimeStr = `${year}-${month}-${day}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+06:00`;
+    // Australia/Sydney is UTC+10 (AEST) or UTC+11 (AEDT during daylight saving)
+    // Using +11:00 for Australian Eastern Daylight Time (Oct-Apr)
+    const startTimeStr = `${year}-${month}-${day}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00+11:00`;
+    const endTimeStr = `${year}-${month}-${day}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+11:00`;
 
-    // Now these are explicitly in Asia/Dhaka timezone and will be automatically converted to UTC
+    // Now these are explicitly in Australia/Sydney timezone and will be automatically converted to UTC
     const startDateTimeUTC = new Date(startTimeStr);
     const endDateTimeUTC = new Date(endTimeStr);
 

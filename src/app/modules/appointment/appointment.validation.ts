@@ -142,6 +142,22 @@ const getAppointmentByTokenSchema = z.object({
   cookies: z.object({}).optional(),
 });
 
+const confirmManualPaymentSchema = z.object({
+  params: z.object({
+    appointmentId: z.string().uuid('Invalid appointment ID format'),
+  }),
+  body: z.object({
+    status: z.enum(['CONFIRMED'], {
+      required_error: 'Status is required and must be CONFIRMED',
+    }),
+    payment_status: z.enum(['PAID'], {
+      required_error: 'Payment status is required and must be PAID',
+    }),
+  }),
+  query: z.object({}).optional(),
+  cookies: z.object({}).optional(),
+});
+
 const AppointmentValidation = {
   getAppointmentsQuerySchema,
   cancelAppointmentSchema,
@@ -149,6 +165,7 @@ const AppointmentValidation = {
   createManualAppointmentSchema,
   createManualAppointmentWithPaymentSchema,
   getAppointmentByTokenSchema,
+  confirmManualPaymentSchema,
 };
 
 export default AppointmentValidation;

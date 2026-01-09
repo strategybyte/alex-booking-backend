@@ -60,11 +60,39 @@ const UpdateProfileSchema = z.object({
   }),
 });
 
+const ForgotPasswordSchema = z.object({
+  body: z.object({
+    email: z
+      .string({
+        required_error: 'Email is required',
+        invalid_type_error: 'Email must be a string',
+      })
+      .email('Invalid email format'),
+  }),
+});
+
+const ResetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string({
+      required_error: 'Reset token is required',
+      invalid_type_error: 'Token must be a string',
+    }),
+    new_password: z
+      .string({
+        required_error: 'New password is required',
+        invalid_type_error: 'New password must be a string',
+      })
+      .min(6, 'Password must be at least 6 characters long'),
+  }),
+});
+
 const AuthValidation = {
   LoginSchema,
   ChangePasswordSchema,
   RegisterSchema,
   UpdateProfileSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
 };
 
 export default AuthValidation;

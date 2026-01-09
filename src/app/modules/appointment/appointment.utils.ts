@@ -388,9 +388,193 @@ const createPaymentLinkEmail = (data: PaymentLinkEmailData): string => {
   `;
 };
 
+interface CounselorNotificationData {
+  counselorName: string;
+  clientName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  sessionType: 'ONLINE' | 'IN_PERSON';
+  clientEmail: string;
+  clientPhone: string;
+  meetingLink?: string;
+  notes?: string;
+}
+
+const createCounselorNotificationEmail = (
+  data: CounselorNotificationData,
+): string => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>New Appointment Notification</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            .container {
+                max-width: 600px;
+                margin: 20px auto;
+                padding: 0;
+                background-color: #ffffff;
+            }
+            .header {
+                background-color: #17a2b8;
+                color: #ffffff;
+                text-align: center;
+                padding: 30px 20px;
+            }
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+            .content {
+                padding: 30px 40px;
+            }
+            .appointment-details {
+                background-color: #f8f9fa;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 25px 0;
+                border-left: 4px solid #17a2b8;
+            }
+            .detail-row {
+                padding: 8px 0;
+                border-bottom: 1px solid #e9ecef;
+            }
+            .detail-row:last-child {
+                border-bottom: none;
+            }
+            .detail-label {
+                font-weight: bold;
+                color: #495057;
+                display: inline-block;
+                width: 140px;
+            }
+            .detail-value {
+                color: #212529;
+            }
+            .meeting-link {
+                background-color: #e7f3ff;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 20px 0;
+                text-align: center;
+            }
+            .meeting-link a {
+                color: #007bff;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            .note {
+                background-color: #d1ecf1;
+                border-left: 4px solid #17a2b8;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }
+            .footer {
+                margin-top: 30px;
+                padding: 20px 40px 30px;
+                font-size: 13px;
+                color: #6c757d;
+                text-align: center;
+                background-color: #f8f9fa;
+            }
+            .divider {
+                height: 1px;
+                background-color: #dee2e6;
+                margin: 20px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>New Appointment Scheduled</h1>
+            </div>
+
+            <div class="content">
+                <p>Hello <strong>${data.counselorName}</strong>,</p>
+
+                <p>A new appointment has been scheduled with you. Here are the details:</p>
+
+                <div class="appointment-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Client Name:</span>
+                        <span class="detail-value">${data.clientName}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Client Email:</span>
+                        <span class="detail-value">${data.clientEmail}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Client Phone:</span>
+                        <span class="detail-value">${data.clientPhone}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${data.appointmentDate}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Time:</span>
+                        <span class="detail-value">${data.appointmentTime}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Session Type:</span>
+                        <span class="detail-value">${data.sessionType === 'ONLINE' ? 'Online Session' : 'In-Person Session'}</span>
+                    </div>
+                    ${
+                      data.notes
+                        ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Notes:</span>
+                        <span class="detail-value">${data.notes}</span>
+                    </div>
+                    `
+                        : ''
+                    }
+                </div>
+
+                ${
+                  data.meetingLink && data.sessionType === 'ONLINE'
+                    ? `
+                <div class="meeting-link">
+                    <p style="margin: 0 0 10px 0; font-weight: bold;">Online Meeting Link:</p>
+                    <a href="${data.meetingLink}" target="_blank">${data.meetingLink}</a>
+                </div>
+                `
+                    : ''
+                }
+
+                <div class="note">
+                    <strong>Reminder:</strong> Please ensure you're prepared for this session. The client has been notified and will receive the same meeting details.
+                </div>
+
+                <p style="margin-top: 25px;">This appointment has been confirmed and added to your calendar.</p>
+            </div>
+
+            <div class="footer">
+                <p>This is an automated notification from your booking system.</p>
+                <p style="margin: 5px 0;">&copy; Alexander Rodriguez Booking System</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `;
+};
+
 const AppointmentUtils = {
   createAppointmentConfirmationEmail,
   createPaymentLinkEmail,
+  createCounselorNotificationEmail,
 };
 
 export default AppointmentUtils;

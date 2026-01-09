@@ -27,7 +27,8 @@ async function startServer() {
   });
 }
 
-scheduledAutoCancelPendingJobs();
+// Auto-cancel cron job is disabled
+// scheduledAutoCancelPendingJobs();
 
 startServer();
 

@@ -42,5 +42,10 @@ router.patch(
   validateRequest(AppointmentValidation.rescheduleAppointmentSchema),
   AppointmentController.RescheduleCounselorAppointmentById,
 );
+router.post(
+  '/:appointmentId/confirm-manual-payment',
+  validateRequest(AppointmentValidation.confirmManualPaymentSchema),
+  AppointmentController.ConfirmManualPayment,
+);
 
 export const AppointmentRoutes = router;

@@ -72,7 +72,7 @@ const createCalendarEvent = async (data: CreateEventData) => {
     const eventTitle = `Counselling Session - ${data.clientName}`;
 
     // Use the business timezone for formatting display dates
-    const businessTimeZone = data.timeZone || 'Asia/Dhaka';
+    const businessTimeZone = data.timeZone || 'Australia/Sydney';
 
     // Convert UTC times back to business timezone for display in description
     // data.startDateTime and data.endDateTime are already in UTC from payment service
@@ -404,7 +404,7 @@ const rescheduleCalendarEvent = async (
     const eventTitle = `Counselling Session - ${data.clientName}`;
 
     // Use the business timezone for formatting display dates
-    const businessTimeZone = data.timeZone || 'Asia/Dhaka';
+    const businessTimeZone = data.timeZone || 'Australia/Sydney';
 
     // Convert UTC times back to business timezone for display in description
     const localStartTime = toZonedTime(data.startDateTime, businessTimeZone);

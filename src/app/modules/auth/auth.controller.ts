@@ -111,6 +111,26 @@ const DeleteProfilePicture = catchAsync(async (req, res) => {
   });
 });
 
+const ForgotPassword = catchAsync(async (req, res) => {
+  const result = await AuthService.ForgotPassword(req.body);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: result.message,
+  });
+});
+
+const ResetPassword = catchAsync(async (req, res) => {
+  const result = await AuthService.ResetPassword(req.body);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: result.message,
+  });
+});
+
 const AuthController = {
   Login,
   ChangePassword,
@@ -118,6 +138,8 @@ const AuthController = {
   UpdateProfile,
   DeleteProfilePicture,
   Register,
+  ForgotPassword,
+  ResetPassword,
 };
 
 export default AuthController;

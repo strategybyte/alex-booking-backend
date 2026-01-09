@@ -129,6 +129,20 @@ const GetAppointmentByToken = catchAsync(async (req, res) => {
   });
 });
 
+const ConfirmManualPayment = catchAsync(async (req, res) => {
+  const result = await AppointmentService.ConfirmManualPayment(
+    req.params.appointmentId,
+    req.user.id,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Payment confirmed and appointment updated successfully',
+    data: result,
+  });
+});
+
 const AppointmentController = {
   GetCounselorAppointments,
   GetCounselorAppointmentDetailsById,
@@ -138,6 +152,7 @@ const AppointmentController = {
   CreateManualAppointment,
   CreateManualAppointmentWithPayment,
   GetAppointmentByToken,
+  ConfirmManualPayment,
 };
 
 export default AppointmentController;

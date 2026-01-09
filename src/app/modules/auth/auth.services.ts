@@ -7,6 +7,8 @@ import AppError from '../../errors/AppError';
 import prisma from '../../utils/prisma';
 import AuthUtils from './auth.utils';
 import { deleteFromSpaces, extractKeyFromUrl } from '../../utils/handelFile';
+import crypto from 'crypto';
+import sendMail from '../../utils/mailer';
 
 const Register = async (payload: User) => {
   const { email, password, name } = payload;
@@ -273,6 +275,140 @@ const DeleteProfilePicture = async (user: JwtPayload) => {
   return updatedUser;
 };
 
+const ForgotPassword = async (payload: { email: string }) => {
+  const { email } = payload;
+
+  // Check if user exists
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'No user found with this email');
+  }
+
+  // Generate secure random token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  // Hash the token before storing in database
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+  // Token expires in 1 hour
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+  // Delete any existing reset tokens for this user
+  await prisma.passwordResetToken.deleteMany({
+    where: { user_id: user.id },
+  });
+
+  // Create new reset token
+  await prisma.passwordResetToken.create({
+    data: {
+      user_id: user.id,
+      token: hashedToken,
+      expires_at: expiresAt,
+    },
+  });
+
+  // Create reset link
+  const resetLink = `${config.frontend_base_url}/reset-password?token=${resetToken}`;
+
+  // Email template
+  const emailBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+        .content { background-color: #f9f9f9; padding: 30px; border-radius: 5px; margin-top: 20px; }
+        .button { display: inline-block; padding: 12px 30px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #777; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Password Reset Request</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${user.name},</p>
+          <p>We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.</p>
+          <p>To reset your password, click the button below:</p>
+          <div style="text-align: center;">
+            <a href="${resetLink}" class="button">Reset Password</a>
+          </div>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #4CAF50;">${resetLink}</p>
+          <p><strong>This link will expire in 1 hour.</strong></p>
+          <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+        </div>
+        <div class="footer">
+          <p>This is an automated email. Please do not reply.</p>
+          <p>&copy; ${new Date().getFullYear()} Alexander Rodriguez. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Send email
+  await sendMail(email, 'Password Reset Request', emailBody);
+
+  return { message: 'Password reset link sent to your email' };
+};
+
+const ResetPassword = async (payload: {
+  token: string;
+  new_password: string;
+}) => {
+  const { token, new_password } = payload;
+
+  // Hash the provided token to match against database
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  // Find the reset token
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { token: hashedToken },
+    include: { user: true },
+  });
+
+  if (!resetToken) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid or expired reset token');
+  }
+
+  // Check if token has expired
+  if (new Date() > resetToken.expires_at) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Reset token has expired');
+  }
+
+  // Check if token has been used
+  if (resetToken.is_used) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Reset token has already been used');
+  }
+
+  // Hash the new password
+  const hashedPassword = await bcrypt.hash(
+    new_password,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  // Update user password
+  await prisma.user.update({
+    where: { id: resetToken.user_id },
+    data: { password: hashedPassword },
+  });
+
+  // Mark token as used
+  await prisma.passwordResetToken.update({
+    where: { id: resetToken.id },
+    data: { is_used: true },
+  });
+
+  return { message: 'Password reset successful' };
+};
+
 const AuthService = {
   Register,
   Login,
@@ -280,6 +416,8 @@ const AuthService = {
   GetMyProfile,
   UpdateProfile,
   DeleteProfilePicture,
+  ForgotPassword,
+  ResetPassword,
 };
 
 export default AuthService;
