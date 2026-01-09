@@ -2,6 +2,9 @@ import prisma from '../../utils/prisma';
 import { Prisma, SessionType } from '@prisma/client';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+
+const BUSINESS_TIMEZONE = 'Australia/Sydney';
 
 /**
  * Helper function to parse time string and extract hours and minutes
@@ -37,27 +40,30 @@ const parseTimeString = (
 
 /**
  * Helper function to parse time string (e.g., "8:00 AM") and check if it's in the past
- * @param date - The calendar date
+ * @param date - The calendar date (stored in UTC)
  * @param timeString - The time string (e.g., "8:00 AM", "2:30 PM")
  * @returns true if the time is in the past, false otherwise
  */
 const isTimeInPast = (date: Date, timeString: string): boolean => {
-  const now = new Date();
+  // Get current time in Sydney timezone
+  const nowUtc = new Date();
+  const nowSydney = toZonedTime(nowUtc, BUSINESS_TIMEZONE);
 
-  // Normalize date to remove time component for comparison
-  const calendarDate = new Date(date);
-  calendarDate.setHours(0, 0, 0, 0);
+  // Convert the UTC date to Sydney timezone
+  const calendarDateSydney = toZonedTime(date, BUSINESS_TIMEZONE);
+  const calendarDateOnly = new Date(calendarDateSydney);
+  calendarDateOnly.setHours(0, 0, 0, 0);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayOnly = new Date(nowSydney);
+  todayOnly.setHours(0, 0, 0, 0);
 
-  // If the calendar date is before today, it's in the past
-  if (calendarDate < today) {
+  // If the calendar date is before today (in Sydney time), it's in the past
+  if (calendarDateOnly < todayOnly) {
     return true;
   }
 
-  // If the calendar date is after today, it's not in the past
-  if (calendarDate > today) {
+  // If the calendar date is after today (in Sydney time), it's not in the past
+  if (calendarDateOnly > todayOnly) {
     return false;
   }
 
@@ -68,12 +74,12 @@ const isTimeInPast = (date: Date, timeString: string): boolean => {
     return false;
   }
 
-  // Create a datetime for the slot
-  const slotDateTime = new Date(calendarDate);
+  // Create a datetime for the slot in Sydney timezone
+  const slotDateTime = new Date(calendarDateOnly);
   slotDateTime.setHours(parsed.hours, parsed.minutes, 0, 0);
 
-  // Compare with current time
-  return slotDateTime < now;
+  // Compare with current Sydney time
+  return slotDateTime < nowSydney;
 };
 
 /**
@@ -163,25 +169,40 @@ const GetCalenders = async (counselorId: string) => {
     },
   });
 
-  const calender = calenderDates.map((item) => ({
-    id: item.id,
-    isoDate: item.date,
-    date: item.date.toISOString().split('T')[0],
-    availableSlots: item._count.time_slots,
-    haveSlots: !!item._count.time_slots,
-  }));
+  const calender = calenderDates.map((item) => {
+    // Convert UTC date to Sydney timezone for display
+    const sydneyDate = toZonedTime(item.date, BUSINESS_TIMEZONE);
+    const dateStr = sydneyDate.toISOString().split('T')[0];
+
+    return {
+      id: item.id,
+      isoDate: item.date,
+      date: dateStr,
+      availableSlots: item._count.time_slots,
+      haveSlots: !!item._count.time_slots,
+    };
+  });
   return { calender };
 };
 
 const CreateCalenderDate = async (counselorId: string, date: string | Date) => {
-  // Validate that the date is not in the past
+  // Get current date in Sydney timezone
+  const nowUtc = new Date();
+  const nowSydney = toZonedTime(nowUtc, BUSINESS_TIMEZONE);
+  const todaySydney = new Date(nowSydney);
+  todaySydney.setHours(0, 0, 0, 0);
+
+  // Parse input date and normalize
   const inputDate = new Date(date);
   inputDate.setHours(0, 0, 0, 0);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Convert input date to Sydney timezone for comparison
+  const inputDateSydney = toZonedTime(inputDate, BUSINESS_TIMEZONE);
+  const inputDateOnly = new Date(inputDateSydney);
+  inputDateOnly.setHours(0, 0, 0, 0);
 
-  if (inputDate < today) {
+  // Validate that the date is not in the past (in Sydney timezone)
+  if (inputDateOnly < todaySydney) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       'Cannot create calendar for past dates',
@@ -599,28 +620,38 @@ const GetSlotsWithCalendarDate = async (counselorId: string) => {
   });
 
   // Transform the data to include appointment information
-  const transformedCalendars = calendars.map((calendar) => ({
-    ...calendar,
-    time_slots: calendar.time_slots.map((slot) => {
-      const appointment = slot.appointments[0]; // Should only be one active appointment per slot
-      return {
-        ...slot,
-        appointment: appointment
-          ? {
-              id: appointment.id,
-              session_type: appointment.session_type,
-              date: appointment.date,
-              status: appointment.status,
-              is_rescheduled: appointment.is_rescheduled,
-              client: appointment.client,
-              meeting: appointment.meeting,
-              created_at: appointment.created_at,
-            }
-          : null,
-        appointments: undefined, // Remove the nested appointments array
-      };
-    }),
-  }));
+  const transformedCalendars = calendars.map((calendar) => {
+    // Convert UTC date to Sydney timezone for display
+    const sydneyDate = toZonedTime(calendar.date, BUSINESS_TIMEZONE);
+    const dateStr = sydneyDate.toISOString().split('T')[0];
+
+    return {
+      ...calendar,
+      date: calendar.date, // Keep original UTC date
+      dateDisplay: dateStr, // Add display date in Sydney timezone
+      time_slots: calendar.time_slots.map((slot) => {
+        const appointment = slot.appointments[0]; // Should only be one active appointment per slot
+        return {
+          ...slot,
+          appointment: appointment
+            ? {
+                id: appointment.id,
+                session_type: appointment.session_type,
+                date: appointment.date,
+                dateDisplay: toZonedTime(appointment.date, BUSINESS_TIMEZONE).toISOString().split('T')[0],
+                status: appointment.status,
+                is_rescheduled: appointment.is_rescheduled,
+                client: appointment.client,
+                meeting: appointment.meeting,
+                created_at: appointment.created_at,
+                created_at_sydney: toZonedTime(appointment.created_at, BUSINESS_TIMEZONE).toISOString(),
+              }
+            : null,
+          appointments: undefined, // Remove the nested appointments array
+        };
+      }),
+    };
+  });
 
   return transformedCalendars;
 };

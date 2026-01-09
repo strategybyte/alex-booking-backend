@@ -3,6 +3,8 @@ import prisma from '../../utils/prisma';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 const GetCounselorCalendar = async (counselorId: string) => {
+  const BUSINESS_TIMEZONE = 'Australia/Sydney';
+
   const calendarDates = await prisma.calendar.findMany({
     where: {
       counselor_id: counselorId,
@@ -37,13 +39,20 @@ const GetCounselorCalendar = async (counselorId: string) => {
     },
   });
 
-  const calendar = calendarDates.map((item) => ({
-    id: item.id,
-    date: item.date.toISOString().split('T')[0],
-    counselor: item.counselor,
-    availableSlots: item._count.time_slots,
-    hasAvailableSlots: item._count.time_slots > 0,
-  }));
+  const calendar = calendarDates.map((item) => {
+    // Convert UTC date to Sydney timezone for display
+    const sydneyDate = toZonedTime(item.date, BUSINESS_TIMEZONE);
+    const dateStr = sydneyDate.toISOString().split('T')[0];
+
+    return {
+      id: item.id,
+      date: dateStr, // Display date in Sydney timezone
+      isoDate: item.date, // Keep original UTC date
+      counselor: item.counselor,
+      availableSlots: item._count.time_slots,
+      hasAvailableSlots: item._count.time_slots > 0,
+    };
+  });
 
   return { calendar };
 };
