@@ -5,6 +5,67 @@ import httpStatus from 'http-status';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 const BUSINESS_TIMEZONE = 'Australia/Sydney';
+const TIMEZONE_OFFSET_HOURS = 5;
+
+/**
+ * Add timezone offset to time string (for saving to DB)
+ * @param timeString - Time like "8:00 AM"
+ * @returns Time with offset added like "1:00 PM"
+ */
+const addTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Add timezone offset
+  hours = (hours + TIMEZONE_OFFSET_HOURS) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
+
+/**
+ * Subtract timezone offset from time string (for fetching from DB)
+ * @param timeString - Time like "1:00 PM"
+ * @returns Time with offset removed like "8:00 AM"
+ */
+const subtractTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Subtract timezone offset
+  hours = (hours - TIMEZONE_OFFSET_HOURS + 24) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
 
 /**
  * Helper function to parse time string and extract hours and minutes
@@ -236,12 +297,42 @@ const GetDateSlots = async (calendarId: string) => {
       created_at: true,
       updated_at: true,
     },
+    orderBy: {
+      start_time: 'asc',
+    },
   });
 
-  const formattedResult = result.map((slot) => ({
+  // Helper function to parse time strings like "12:00 PM" to minutes since midnight
+  const parseTimeToMinutes = (timeString: string): number => {
+    const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return 0;
+
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const meridiem = match[3].toUpperCase();
+
+    // Convert to 24-hour format
+    if (meridiem === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (meridiem === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
+  // Sort slots by time
+  const sortedResult = result.sort((a, b) => {
+    const aMinutes = parseTimeToMinutes(a.start_time);
+    const bMinutes = parseTimeToMinutes(b.start_time);
+    return aMinutes - bMinutes;
+  });
+
+  const formattedResult = sortedResult.map((slot) => ({
     id: slot.id,
-    startTime: slot.start_time,
-    endTime: slot.end_time,
+    startTime: subtractTimezoneOffset(slot.start_time), // Subtract 5 hours when fetching
+    endTime: subtractTimezoneOffset(slot.end_time), // Subtract 5 hours when fetching
+    timezone: BUSINESS_TIMEZONE, // Add timezone information
     type: slot.type,
     status: slot.status,
     is_rescheduled: slot.is_rescheduled,
@@ -313,18 +404,22 @@ const CreateDateSlots = async (
 
     // Check for duplicates or overlaps with existing slots
     for (const existingSlot of existingSlots) {
+      // Convert DB times back to user time for comparison
+      const existingStartTime = subtractTimezoneOffset(existingSlot.start_time);
+      const existingEndTime = subtractTimezoneOffset(existingSlot.end_time);
+
       if (
         doSlotsOverlap(
           slot.start_time,
           slot.end_time,
-          existingSlot.start_time,
-          existingSlot.end_time,
+          existingStartTime,
+          existingEndTime,
         )
       ) {
         // Check if it's an exact duplicate
         if (
-          slot.start_time === existingSlot.start_time &&
-          slot.end_time === existingSlot.end_time
+          slot.start_time === existingStartTime &&
+          slot.end_time === existingEndTime
         ) {
           throw new AppError(
             httpStatus.BAD_REQUEST,
@@ -333,7 +428,7 @@ const CreateDateSlots = async (
         } else {
           throw new AppError(
             httpStatus.BAD_REQUEST,
-            `Slot overlap detected. The slot from ${slot.start_time} to ${slot.end_time} overlaps with existing slot ${existingSlot.start_time} to ${existingSlot.end_time}.`,
+            `Slot overlap detected. The slot from ${slot.start_time} to ${slot.end_time} overlaps with existing slot ${existingStartTime} to ${existingEndTime}.`,
           );
         }
       }
@@ -372,8 +467,8 @@ const CreateDateSlots = async (
   const result = await prisma.timeSlot.createMany({
     data: slots.data.map((item) => ({
       calendar_id: calendarId,
-      start_time: item.start_time,
-      end_time: item.end_time,
+      start_time: addTimezoneOffset(item.start_time), // Add 5 hours when saving
+      end_time: addTimezoneOffset(item.end_time), // Add 5 hours when saving
       type: item.type,
     })),
   });
@@ -524,17 +619,21 @@ const CreateSlotsWithCalendarDate = async (
         // Check for overlaps/duplicates with existing slots
         for (const newSlot of day.slots) {
           for (const existingSlot of existingSlots) {
+            // Convert DB times back to user time for comparison
+            const existingStartTime = subtractTimezoneOffset(existingSlot.start_time);
+            const existingEndTime = subtractTimezoneOffset(existingSlot.end_time);
+
             if (
               doSlotsOverlap(
                 newSlot.start_time,
                 newSlot.end_time,
-                existingSlot.start_time,
-                existingSlot.end_time,
+                existingStartTime,
+                existingEndTime,
               )
             ) {
               if (
-                newSlot.start_time === existingSlot.start_time &&
-                newSlot.end_time === existingSlot.end_time
+                newSlot.start_time === existingStartTime &&
+                newSlot.end_time === existingEndTime
               ) {
                 throw new AppError(
                   httpStatus.BAD_REQUEST,
@@ -543,7 +642,7 @@ const CreateSlotsWithCalendarDate = async (
               } else {
                 throw new AppError(
                   httpStatus.BAD_REQUEST,
-                  `Slot overlap detected. The slot from ${newSlot.start_time} to ${newSlot.end_time} overlaps with existing slot ${existingSlot.start_time} to ${existingSlot.end_time} on ${day.date}.`,
+                  `Slot overlap detected. The slot from ${newSlot.start_time} to ${newSlot.end_time} overlaps with existing slot ${existingStartTime} to ${existingEndTime} on ${day.date}.`,
                 );
               }
             }
@@ -565,8 +664,8 @@ const CreateSlotsWithCalendarDate = async (
       for (const slot of day.slots) {
         allSlots.push({
           calendar_id: calendar.id,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
+          start_time: addTimezoneOffset(slot.start_time), // Add 5 hours when saving
+          end_time: addTimezoneOffset(slot.end_time), // Add 5 hours when saving
           type: slot.type,
           status: 'AVAILABLE',
         });
@@ -633,6 +732,9 @@ const GetSlotsWithCalendarDate = async (counselorId: string) => {
         const appointment = slot.appointments[0]; // Should only be one active appointment per slot
         return {
           ...slot,
+          start_time: subtractTimezoneOffset(slot.start_time), // Subtract 5 hours when fetching
+          end_time: subtractTimezoneOffset(slot.end_time), // Subtract 5 hours when fetching
+          timezone: BUSINESS_TIMEZONE, // Add timezone information
           appointment: appointment
             ? {
                 id: appointment.id,

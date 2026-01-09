@@ -2,6 +2,68 @@ import { Prisma, SessionType } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
+const TIMEZONE_OFFSET_HOURS = 5;
+
+/**
+ * Add timezone offset to time string (for saving to DB)
+ * @param timeString - Time like "8:00 AM"
+ * @returns Time with offset added like "1:00 PM"
+ */
+const addTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Add timezone offset
+  hours = (hours + TIMEZONE_OFFSET_HOURS) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
+
+/**
+ * Subtract timezone offset from time string (for fetching from DB)
+ * @param timeString - Time like "1:00 PM"
+ * @returns Time with offset removed like "8:00 AM"
+ */
+const subtractTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Subtract timezone offset
+  hours = (hours - TIMEZONE_OFFSET_HOURS + 24) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
+
 const GetCounselorCalendar = async (counselorId: string) => {
   const BUSINESS_TIMEZONE = 'Australia/Sydney';
 
@@ -62,9 +124,11 @@ const GetCounselorDateSlots = async (
   date: string,
   type: SessionType,
 ) => {
+  const BUSINESS_TIMEZONE = 'Australia/Sydney';
+
   const where: Prisma.TimeSlotWhereInput = {
     calendar: {
-      date: new Date(date).toISOString(),
+      date: new Date(date),
       counselor_id: calendarId,
     },
     status: 'AVAILABLE',
@@ -78,13 +142,40 @@ const GetCounselorDateSlots = async (
     where,
   });
 
+  // Helper function to parse time strings like "12:00 PM" to minutes since midnight
+  const parseTimeToMinutes = (timeString: string): number => {
+    const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return 0;
+
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const meridiem = match[3].toUpperCase();
+
+    // Convert to 24-hour format
+    if (meridiem === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (meridiem === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
   const sortedSlots = slots.sort((a, b) => {
-    const aTime = new Date(`1970-01-01T${a.start_time}`);
-    const bTime = new Date(`1970-01-01T${b.start_time}`);
-    return aTime.getTime() - bTime.getTime();
+    const aMinutes = parseTimeToMinutes(a.start_time);
+    const bMinutes = parseTimeToMinutes(b.start_time);
+    return aMinutes - bMinutes;
   });
 
-  return { slots: sortedSlots };
+  // Add timezone information to each slot and subtract offset
+  const slotsWithTimezone = sortedSlots.map((slot) => ({
+    ...slot,
+    start_time: subtractTimezoneOffset(slot.start_time), // Subtract 5 hours when fetching
+    end_time: subtractTimezoneOffset(slot.end_time), // Subtract 5 hours when fetching
+    timezone: BUSINESS_TIMEZONE,
+  }));
+
+  return { slots: slotsWithTimezone };
 };
 
 const CheckCounselorsAvailability = async (datetimeString: string, customerTimezone: string) => {

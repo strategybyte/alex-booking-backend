@@ -7,6 +7,38 @@ import Stripe from 'stripe';
 import GoogleCalendarService from '../google/googleCalendar.services';
 import { BalanceService } from '../balance/balance.services';
 
+const TIMEZONE_OFFSET_HOURS = 5;
+
+/**
+ * Subtract timezone offset from time string (for displaying in emails)
+ * @param timeString - Time like "1:00 PM" from DB
+ * @returns Time with offset removed like "8:00 AM"
+ */
+const subtractTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Subtract timezone offset
+  hours = (hours - TIMEZONE_OFFSET_HOURS + 24) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
+
 interface CreatePaymentIntentData {
   appointment_id: string;
   amount: number;
@@ -297,7 +329,7 @@ const handlePaymentSuccess = async (paymentIntent: Stripe.PaymentIntent) => {
           month: 'long',
           day: 'numeric',
         });
-        const appointmentTime = `${appointment.time_slot.start_time} - ${appointment.time_slot.end_time}`;
+        const appointmentTime = `${subtractTimezoneOffset(appointment.time_slot.start_time)} - ${subtractTimezoneOffset(appointment.time_slot.end_time)}`;
         const meetingLink = calendarResult?.meetingLink ?? undefined;
 
         // Email to client

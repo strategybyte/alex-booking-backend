@@ -8,6 +8,38 @@ import GoogleCalendarService from '../google/googleCalendar.services';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 
+const TIMEZONE_OFFSET_HOURS = 5;
+
+/**
+ * Subtract timezone offset from time string (for displaying in emails)
+ * @param timeString - Time like "1:00 PM" from DB
+ * @returns Time with offset removed like "8:00 AM"
+ */
+const subtractTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Subtract timezone offset
+  hours = (hours - TIMEZONE_OFFSET_HOURS + 24) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
+
 interface IAppointmentFilters {
   search?: string;
   session_type?: 'ONLINE' | 'IN_PERSON';
@@ -124,8 +156,8 @@ const GetCounselorAppointmentsById = async (
     id: appointment.id,
     sessionType: appointment.session_type,
     appointmentDate: appointment.date,
-    startTime: appointment.time_slot.start_time,
-    endTime: appointment.time_slot.end_time,
+    startTime: subtractTimezoneOffset(appointment.time_slot.start_time), // Subtract 5 hours when fetching
+    endTime: subtractTimezoneOffset(appointment.time_slot.end_time), // Subtract 5 hours when fetching
     status: appointment.status,
     client: {
       firstName: appointment.client.first_name,
@@ -192,7 +224,18 @@ const GetCounselorAppointmentDetailsById = async (id: string) => {
     },
   });
 
-  return appointment;
+  if (!appointment) {
+    return null;
+  }
+
+  // Apply timezone conversion to time slot
+  return {
+    ...appointment,
+    time_slot: {
+      start_time: subtractTimezoneOffset(appointment.time_slot.start_time), // Subtract 5 hours when fetching
+      end_time: subtractTimezoneOffset(appointment.time_slot.end_time), // Subtract 5 hours when fetching
+    },
+  };
 };
 
 const CompleteAppointmentById = async (id: string) => {
@@ -797,7 +840,7 @@ const CreateManualAppointment = async (
             day: 'numeric',
           },
         );
-        const appointmentTime = `${fullAppointment.time_slot.start_time} - ${fullAppointment.time_slot.end_time}`;
+        const appointmentTime = `${subtractTimezoneOffset(fullAppointment.time_slot.start_time)} - ${subtractTimezoneOffset(fullAppointment.time_slot.end_time)}`;
 
         // Email to client
         const clientEmailBody = AppointmentUtils.createAppointmentConfirmationEmail({
@@ -1010,7 +1053,7 @@ const CreateManualAppointmentWithPayment = async (
           day: 'numeric',
         },
       );
-      const appointmentTime = `${appointment.time_slot.start_time} - ${appointment.time_slot.end_time}`;
+      const appointmentTime = `${subtractTimezoneOffset(appointment.time_slot.start_time)} - ${subtractTimezoneOffset(appointment.time_slot.end_time)}`;
 
       // Construct payment link
       const paymentLink = `${config.frontend_base_url}/payment/${paymentToken}`;
@@ -1137,7 +1180,14 @@ const GetAppointmentByToken = async (token: string) => {
     );
   }
 
-  return appointment;
+  // Apply timezone conversion to time slot
+  return {
+    ...appointment,
+    time_slot: {
+      start_time: subtractTimezoneOffset(appointment.time_slot.start_time), // Subtract 5 hours when fetching
+      end_time: subtractTimezoneOffset(appointment.time_slot.end_time), // Subtract 5 hours when fetching
+    },
+  };
 };
 
 const ConfirmManualPayment = async (
@@ -1330,7 +1380,7 @@ const ConfirmManualPayment = async (
           month: 'long',
           day: 'numeric',
         });
-        const appointmentTime = `${fullAppointment.time_slot.start_time} - ${fullAppointment.time_slot.end_time}`;
+        const appointmentTime = `${subtractTimezoneOffset(fullAppointment.time_slot.start_time)} - ${subtractTimezoneOffset(fullAppointment.time_slot.end_time)}`;
 
         const clientEmailBody =
           AppointmentUtils.createAppointmentConfirmationEmail({

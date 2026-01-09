@@ -2,6 +2,38 @@ import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import prisma from '../../utils/prisma';
 
+const TIMEZONE_OFFSET_HOURS = 5;
+
+/**
+ * Subtract timezone offset from time string (for fetching from DB)
+ * @param timeString - Time like "1:00 PM" from DB
+ * @returns Time with offset removed like "8:00 AM"
+ */
+const subtractTimezoneOffset = (timeString: string): string => {
+  const match = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return timeString;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (meridiem === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  // Subtract timezone offset
+  hours = (hours - TIMEZONE_OFFSET_HOURS + 24) % 24;
+
+  // Convert back to 12-hour format
+  const newMeridiem = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${newMeridiem}`;
+};
+
 // Utility function to retry transactions with exponential backoff
 const retryTransaction = async <T>(
   operation: () => Promise<T>,
@@ -186,9 +218,14 @@ const CreateAppointment = async (
     500, // Start with 500ms base delay
   );
 
-  // Return appointment with payment required status
+  // Return appointment with payment required status and timezone conversion
   return {
     ...appointment,
+    time_slot: {
+      ...appointment.time_slot,
+      start_time: subtractTimezoneOffset(appointment.time_slot.start_time), // Subtract 5 hours when fetching
+      end_time: subtractTimezoneOffset(appointment.time_slot.end_time), // Subtract 5 hours when fetching
+    },
     requires_payment: true,
   };
 };
@@ -208,7 +245,15 @@ const getAppointment = async (id: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Appointment not found');
   }
 
-  return appointment;
+  // Apply timezone conversion to time slot
+  return {
+    ...appointment,
+    time_slot: {
+      ...appointment.time_slot,
+      start_time: subtractTimezoneOffset(appointment.time_slot.start_time), // Subtract 5 hours when fetching
+      end_time: subtractTimezoneOffset(appointment.time_slot.end_time), // Subtract 5 hours when fetching
+    },
+  };
 };
 
 const PublicAppointmentService = { CreateAppointment, getAppointment };
