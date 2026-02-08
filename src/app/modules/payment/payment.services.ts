@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import GoogleCalendarService from '../google/googleCalendar.services';
 import { BalanceService } from '../balance/balance.services';
 
-const TIMEZONE_OFFSET_HOURS = 5;
+const TIMEZONE_OFFSET_HOURS = 0;
 
 /**
  * Subtract timezone offset from time string (for displaying in emails)
@@ -59,11 +59,10 @@ const createPaymentIntent = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Appointment not found');
   }
 
-  // Check if payment already exists and is paid
-  const existingPayment = await prisma.payment.findFirst({
+  // Check if payment already exists for this appointment
+  const existingPayment = await prisma.payment.findUnique({
     where: {
       appointment_id: data.appointment_id,
-      status: { in: ['PAID', 'PENDING'] },
     },
   });
 

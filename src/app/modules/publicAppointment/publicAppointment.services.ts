@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import prisma from '../../utils/prisma';
 
-const TIMEZONE_OFFSET_HOURS = 5;
+const TIMEZONE_OFFSET_HOURS = 0;
 
 /**
  * Subtract timezone offset from time string (for fetching from DB)

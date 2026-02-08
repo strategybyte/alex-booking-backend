@@ -5,7 +5,7 @@ import httpStatus from 'http-status';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 const BUSINESS_TIMEZONE = 'Australia/Sydney';
-const TIMEZONE_OFFSET_HOURS = 5;
+const TIMEZONE_OFFSET_HOURS = 0;
 
 /**
  * Add timezone offset to time string (for saving to DB)
@@ -711,6 +711,18 @@ const GetSlotsWithCalendarDate = async (counselorId: string) => {
                   link: true,
                 },
               },
+              payment: {
+                select: {
+                  id: true,
+                  amount: true,
+                  currency: true,
+                  status: true,
+                  payment_method: true,
+                  transaction_id: true,
+                  processed_at: true,
+                  created_at: true,
+                },
+              },
             },
           },
         },
@@ -745,6 +757,7 @@ const GetSlotsWithCalendarDate = async (counselorId: string) => {
                 is_rescheduled: appointment.is_rescheduled,
                 client: appointment.client,
                 meeting: appointment.meeting,
+                payment: appointment.payment,
                 created_at: appointment.created_at,
                 created_at_sydney: toZonedTime(appointment.created_at, BUSINESS_TIMEZONE).toISOString(),
               }

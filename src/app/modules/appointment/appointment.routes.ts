@@ -47,5 +47,10 @@ router.post(
   validateRequest(AppointmentValidation.confirmManualPaymentSchema),
   AppointmentController.ConfirmManualPayment,
 );
+router.post(
+  '/:appointmentId/mark-yet-to-pay',
+  validateRequest(AppointmentValidation.markYetToPaySchema),
+  AppointmentController.MarkYetToPay,
+);
 
 export const AppointmentRoutes = router;

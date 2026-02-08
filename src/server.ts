@@ -27,8 +27,8 @@ async function startServer() {
   });
 }
 
-// Auto-cancel cron job is disabled
-// scheduledAutoCancelPendingJobs();
+// Enable auto-cancel cron job for public bookings
+scheduledAutoCancelPendingJobs();
 
 startServer();
 

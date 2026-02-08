@@ -41,6 +41,7 @@ enum AppointmentStatus {
 enum PaymentStatus {
   PENDING
   PAID
+  YET_TO_PAY
   FAILED
   REFUNDED
   CANCELLED

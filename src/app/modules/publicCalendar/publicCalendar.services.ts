@@ -2,7 +2,7 @@ import { Prisma, SessionType } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
-const TIMEZONE_OFFSET_HOURS = 5;
+const TIMEZONE_OFFSET_HOURS = 0;
 
 /**
  * Add timezone offset to time string (for saving to DB)

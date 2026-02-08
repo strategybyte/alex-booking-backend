@@ -111,7 +111,7 @@ const CreateManualAppointmentWithPayment = catchAsync(async (req, res) => {
     success: true,
     statusCode: httpStatus.CREATED,
     message:
-      'Appointment created successfully. Payment link sent to client via email.',
+      'Appointment confirmed successfully. Confirmation email with meeting link and payment link sent to client.',
     data: result,
   });
 });
@@ -143,6 +143,20 @@ const ConfirmManualPayment = catchAsync(async (req, res) => {
   });
 });
 
+const MarkYetToPay = catchAsync(async (req, res) => {
+  const result = await AppointmentService.MarkYetToPay(
+    req.params.appointmentId,
+    req.user.id,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Appointment confirmed with payment marked as yet to pay',
+    data: result,
+  });
+});
+
 const AppointmentController = {
   GetCounselorAppointments,
   GetCounselorAppointmentDetailsById,
@@ -153,6 +167,7 @@ const AppointmentController = {
   CreateManualAppointmentWithPayment,
   GetAppointmentByToken,
   ConfirmManualPayment,
+  MarkYetToPay,
 };
 
 export default AppointmentController;

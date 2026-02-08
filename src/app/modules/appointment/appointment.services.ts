@@ -8,7 +8,7 @@ import GoogleCalendarService from '../google/googleCalendar.services';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 
-const TIMEZONE_OFFSET_HOURS = 5;
+const TIMEZONE_OFFSET_HOURS = 0;
 
 /**
  * Subtract timezone offset from time string (for displaying in emails)
@@ -292,10 +292,10 @@ const CancelAppointmentById = async (id: string, counselorId: string) => {
   // Perform database updates in a transaction (without external API calls)
   const updatedAppointment = await prisma.$transaction(async (tx) => {
     try {
-      // 1. Update TimeSlot status to AVAILABLE
+      // 1. Update TimeSlot status to AVAILABLE and reset is_rescheduled flag
       await tx.timeSlot.update({
         where: { id: appointment.time_slot_id },
-        data: { status: 'AVAILABLE' },
+        data: { status: 'AVAILABLE', is_rescheduled: false },
       });
 
       // 2. Update Appointment status to CANCELLED
@@ -417,10 +417,10 @@ const RescheduleAppointmentById = async (
         );
       }
 
-      // 3. Update old time slot status to AVAILABLE
+      // 3. Update old time slot status to AVAILABLE and reset is_rescheduled flag
       await tx.timeSlot.update({
         where: { id: currentAppointment.time_slot_id },
-        data: { status: 'AVAILABLE' },
+        data: { status: 'AVAILABLE', is_rescheduled: false },
       });
 
       // 4. Update new time slot status to BOOKED
@@ -955,6 +955,7 @@ const CreateManualAppointmentWithPayment = async (
   const paymentTokenExpiry = TokenGenerator.generateTokenExpiry(1440); // 2 months (60 days)
 
   // Create appointment with payment token in transaction
+  // Appointment is CONFIRMED and payment is YET_TO_PAY (no PROCESSING state)
   const appointment = await prisma.$transaction(
     async (tx) => {
       // Upsert client
@@ -979,14 +980,14 @@ const CreateManualAppointmentWithPayment = async (
         },
       });
 
-      // Create appointment with PENDING status and payment token
+      // Create appointment with CONFIRMED status and payment YET_TO_PAY, update time slot to BOOKED
       const [, newAppointment] = await Promise.all([
-        // Mark the time slot as PROCESSING (reserved but not booked)
+        // Mark the time slot as BOOKED (appointment is confirmed immediately)
         tx.timeSlot.update({
           where: { id: data.timeSlotId },
-          data: { status: 'PROCESSING' },
+          data: { status: 'BOOKED' },
         }),
-        // Create Appointment with PENDING status and payment token
+        // Create Appointment with CONFIRMED status and payment YET_TO_PAY
         tx.appointment.create({
           data: {
             client_id: client.id,
@@ -995,7 +996,7 @@ const CreateManualAppointmentWithPayment = async (
             date: new Date(data.date).toISOString(),
             session_type: data.sessionType,
             notes: data.notes || '',
-            status: 'PENDING', // Pending payment
+            status: 'CONFIRMED', // Confirmed immediately
             payment_token: paymentToken,
             payment_token_expiry: paymentTokenExpiry,
             payment: {
@@ -1003,7 +1004,7 @@ const CreateManualAppointmentWithPayment = async (
                 client_id: client.id,
                 amount: data.amount,
                 currency: data.currency || 'AUD',
-                status: 'PENDING',
+                status: 'YET_TO_PAY', // Payment pending but appointment confirmed
               },
             },
           },
@@ -1026,6 +1027,20 @@ const CreateManualAppointmentWithPayment = async (
             },
           },
         }),
+        // Create counselor-client relationship (if not exists)
+        tx.counselorClient.upsert({
+          where: {
+            counselor_id_client_id: {
+              counselor_id: counselorId,
+              client_id: client.id,
+            },
+          },
+          create: {
+            counselor_id: counselorId,
+            client_id: client.id,
+          },
+          update: {}, // No update needed if already exists
+        }),
       ]);
 
       return newAppointment;
@@ -1036,75 +1051,184 @@ const CreateManualAppointmentWithPayment = async (
     },
   );
 
-  // Send payment link email to client and notification to counselor asynchronously
+  // Create Google Calendar event and send confirmation email with payment link asynchronously
   setImmediate(async () => {
     try {
-      const sendMail = (await import('../../utils/mailer')).default;
-      const AppointmentUtils = (await import('./appointment.utils')).default;
-      const config = (await import('../../config')).default;
-
-      const clientName = `${appointment.client.first_name} ${appointment.client.last_name}`;
-      const appointmentDate = new Date(appointment.date).toLocaleDateString(
-        'en-US',
-        {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
+      // Get full appointment details with calendar info
+      const fullAppointment = await prisma.appointment.findUnique({
+        where: { id: appointment.id },
+        include: {
+          client: true,
+          counselor: true,
+          time_slot: {
+            include: {
+              calendar: true,
+            },
+          },
         },
-      );
-      const appointmentTime = `${subtractTimezoneOffset(appointment.time_slot.start_time)} - ${subtractTimezoneOffset(appointment.time_slot.end_time)}`;
-
-      // Construct payment link
-      const paymentLink = `${config.frontend_base_url}/payment/${paymentToken}`;
-
-      // Email to client with payment link
-      const clientEmailBody = AppointmentUtils.createPaymentLinkEmail({
-        clientName,
-        counselorName: appointment.counselor.name,
-        appointmentDate,
-        appointmentTime,
-        sessionType: appointment.session_type,
-        amount: data.amount,
-        currency: data.currency || 'AUD',
-        paymentLink,
-        tokenExpiry: TokenGenerator.formatExpiryDate(paymentTokenExpiry),
       });
 
-      // Email to counselor - notification about pending appointment
-      const counselorEmailBody = AppointmentUtils.createCounselorNotificationEmail({
-        counselorName: appointment.counselor.name,
-        clientName,
-        appointmentDate,
-        appointmentTime,
-        sessionType: appointment.session_type,
-        clientEmail: appointment.client.email,
-        clientPhone: appointment.client.phone,
-        notes: appointment.notes ?? undefined,
-      });
+      if (!fullAppointment) {
+        console.error('Appointment not found after creation');
+        return;
+      }
 
-      // Send both emails in parallel
-      await Promise.all([
-        sendMail(
-          appointment.client.email,
-          'Complete Your Appointment Payment - Alexander Rodriguez Counseling',
-          clientEmailBody,
-        ),
-        sendMail(
-          appointment.counselor.email,
-          'New Appointment (Pending Payment) - Alexander Rodriguez Counseling',
-          counselorEmailBody,
-        ),
-      ]);
+      let meetingLink: string | undefined;
 
-      console.log(
-        `Payment link email sent to client: ${appointment.client.email}`,
-      );
-      console.log(
-        `Notification email sent to counselor: ${appointment.counselor.email}`,
-      );
-    } catch (emailError) {
-      console.error('Error sending payment link and notification emails:', emailError);
+      // Create Google Calendar event (since appointment is confirmed)
+      try {
+        const businessTimeZone = 'Australia/Sydney';
+        const appointmentDate = new Date(fullAppointment.date);
+
+        // Parse time strings
+        const startTimeMatch = fullAppointment.time_slot.start_time.match(
+          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+        );
+        const endTimeMatch = fullAppointment.time_slot.end_time.match(
+          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+        );
+
+        if (startTimeMatch && endTimeMatch) {
+          // Parse start time
+          let startHour = parseInt(startTimeMatch[1]);
+          const startMinute = parseInt(startTimeMatch[2]);
+          const startPeriod = startTimeMatch[3].toUpperCase();
+
+          if (startPeriod === 'PM' && startHour !== 12) {
+            startHour += 12;
+          } else if (startPeriod === 'AM' && startHour === 12) {
+            startHour = 0;
+          }
+
+          // Parse end time
+          let endHour = parseInt(endTimeMatch[1]);
+          const endMinute = parseInt(endTimeMatch[2]);
+          const endPeriod = endTimeMatch[3].toUpperCase();
+
+          if (endPeriod === 'PM' && endHour !== 12) {
+            endHour += 12;
+          } else if (endPeriod === 'AM' && endHour === 12) {
+            endHour = 0;
+          }
+
+          // Create datetime strings
+          const year = appointmentDate.getFullYear();
+          const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+          const day = String(appointmentDate.getDate()).padStart(2, '0');
+
+          const startTimeStr = `${year}-${month}-${day}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00+11:00`;
+          const endTimeStr = `${year}-${month}-${day}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+11:00`;
+
+          const startDateTimeUTC = new Date(startTimeStr);
+          const endDateTimeUTC = new Date(endTimeStr);
+
+          // Create Google Calendar event
+          const calendarResult =
+            await GoogleCalendarService.createCalendarEvent({
+              appointmentId: fullAppointment.id,
+              counselorId: fullAppointment.counselor_id,
+              clientEmail: fullAppointment.client.email,
+              clientName: `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`,
+              startDateTime: startDateTimeUTC,
+              endDateTime: endDateTimeUTC,
+              timeZone: businessTimeZone,
+            });
+
+          if (calendarResult) {
+            console.log(
+              `Google Calendar event created for appointment with payment ${fullAppointment.id}`,
+            );
+            meetingLink = calendarResult.meetingLink ?? undefined;
+
+            // Update appointment with event_id
+            await prisma.appointment.update({
+              where: { id: fullAppointment.id },
+              data: { event_id: calendarResult.eventId },
+            });
+          }
+        }
+      } catch (calendarError) {
+        console.error(
+          'Error creating Google Calendar event for appointment with payment:',
+          calendarError,
+        );
+        // Continue to send email even if calendar creation fails
+      }
+
+      // Send confirmation email with payment link to client and notification to counselor
+      try {
+        const sendMail = (await import('../../utils/mailer')).default;
+        const AppointmentUtils = (await import('./appointment.utils')).default;
+        const config = (await import('../../config')).default;
+
+        const clientName = `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`;
+        const formattedAppointmentDate = new Date(fullAppointment.date).toLocaleDateString(
+          'en-US',
+          {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          },
+        );
+        const appointmentTime = `${subtractTimezoneOffset(fullAppointment.time_slot.start_time)} - ${subtractTimezoneOffset(fullAppointment.time_slot.end_time)}`;
+
+        // Construct payment link
+        const paymentLink = `${config.frontend_base_url}/payment/${paymentToken}`;
+
+        // Email to client with confirmation + payment link (combined email)
+        const clientEmailBody = AppointmentUtils.createConfirmedWithPaymentEmail({
+          clientName,
+          counselorName: fullAppointment.counselor.name,
+          appointmentDate: formattedAppointmentDate,
+          appointmentTime,
+          sessionType: fullAppointment.session_type,
+          meetingLink,
+          counselorId: fullAppointment.counselor_id,
+          amount: data.amount,
+          currency: data.currency || 'AUD',
+          paymentLink,
+          tokenExpiry: TokenGenerator.formatExpiryDate(paymentTokenExpiry),
+        });
+
+        // Email to counselor - notification about confirmed appointment with payment pending
+        const counselorEmailBody = AppointmentUtils.createCounselorNotificationEmail({
+          counselorName: fullAppointment.counselor.name,
+          clientName,
+          appointmentDate: formattedAppointmentDate,
+          appointmentTime,
+          sessionType: fullAppointment.session_type,
+          clientEmail: fullAppointment.client.email,
+          clientPhone: fullAppointment.client.phone,
+          meetingLink,
+          notes: fullAppointment.notes ?? undefined,
+        });
+
+        // Send both emails in parallel
+        await Promise.all([
+          sendMail(
+            fullAppointment.client.email,
+            'Appointment Confirmed - Payment Required - Alexander Rodriguez Counseling',
+            clientEmailBody,
+          ),
+          sendMail(
+            fullAppointment.counselor.email,
+            'New Appointment Confirmed (Payment Pending) - Alexander Rodriguez Counseling',
+            counselorEmailBody,
+          ),
+        ]);
+
+        console.log(
+          `Confirmation email with payment link sent to client: ${fullAppointment.client.email}`,
+        );
+        console.log(
+          `Notification email sent to counselor: ${fullAppointment.counselor.email}`,
+        );
+      } catch (emailError) {
+        console.error('Error sending confirmation and notification emails:', emailError);
+      }
+    } catch (error) {
+      console.error('Error in post-appointment creation tasks:', error);
     }
   });
 
@@ -1172,8 +1296,9 @@ const GetAppointmentByToken = async (token: string) => {
     );
   }
 
-  // Check if already paid
-  if (appointment.status === 'CONFIRMED' || appointment.payment?.status === 'PAID') {
+  // Check if already paid (only check payment status, not appointment status)
+  // Appointment can be CONFIRMED with YET_TO_PAY payment status
+  if (appointment.payment?.status === 'PAID') {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       'This appointment has already been paid for.',
@@ -1225,16 +1350,32 @@ const ConfirmManualPayment = async (
     );
   }
 
-  // Check if appointment is in PENDING status
-  if (appointment.status !== 'PENDING') {
+  // Check if payment is already PAID
+  if (appointment.payment?.status === 'PAID') {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      `Cannot confirm payment. Appointment status is ${appointment.status}`,
+      'Payment has already been confirmed for this appointment',
     );
   }
 
-  // Check if time slot is in PROCESSING status
-  if (appointment.time_slot.status !== 'PROCESSING') {
+  // Allow confirming payment when:
+  // 1. Appointment is PENDING (initial state) - time slot should be PROCESSING
+  // 2. Appointment is CONFIRMED but payment is YET_TO_PAY - time slot is already BOOKED
+  const isPending = appointment.status === 'PENDING';
+  const isConfirmedYetToPay =
+    appointment.status === 'CONFIRMED' &&
+    (appointment.payment?.status === 'YET_TO_PAY' ||
+      appointment.payment?.status === 'PENDING');
+
+  if (!isPending && !isConfirmedYetToPay) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Cannot confirm payment. Appointment status is ${appointment.status} and payment status is ${appointment.payment?.status || 'unknown'}`,
+    );
+  }
+
+  // Check time slot status only for PENDING appointments
+  if (isPending && appointment.time_slot.status !== 'PROCESSING') {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       `Cannot confirm payment. Time slot status is ${appointment.time_slot.status}`,
@@ -1243,16 +1384,19 @@ const ConfirmManualPayment = async (
 
   // Update in transaction
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Update time slot status to BOOKED
-    await tx.timeSlot.update({
-      where: { id: appointment.time_slot_id },
-      data: { status: 'BOOKED' },
-    });
+    // Only update time slot if appointment is PENDING (not yet confirmed)
+    if (isPending) {
+      // 1. Update time slot status to BOOKED
+      await tx.timeSlot.update({
+        where: { id: appointment.time_slot_id },
+        data: { status: 'BOOKED' },
+      });
+    }
 
-    // 2. Update appointment status to CONFIRMED
+    // Only update appointment status if not already CONFIRMED
     const updatedAppointment = await tx.appointment.update({
       where: { id: appointmentId },
-      data: { status: 'CONFIRMED' },
+      data: isPending ? { status: 'CONFIRMED' } : {},
       include: {
         client: true,
         counselor: true,
@@ -1261,7 +1405,7 @@ const ConfirmManualPayment = async (
       },
     });
 
-    // 3. Update payment status to PAID
+    // Update payment status to PAID
     if (appointment.payment) {
       await tx.payment.update({
         where: { id: appointment.payment.id },
@@ -1295,6 +1439,249 @@ const ConfirmManualPayment = async (
 
       if (!fullAppointment) {
         console.error('Appointment not found after payment confirmation');
+        return;
+      }
+
+      let meetingLink: string | undefined;
+
+      // Only create Google Calendar event if one doesn't exist already
+      // (If appointment was marked as YET_TO_PAY first, calendar event already exists)
+      if (!fullAppointment.event_id) {
+        try {
+          const businessTimeZone = 'Australia/Sydney';
+          const appointmentDate = new Date(fullAppointment.date);
+
+          const startTimeMatch = fullAppointment.time_slot.start_time.match(
+            /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+          );
+          const endTimeMatch = fullAppointment.time_slot.end_time.match(
+            /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+          );
+
+          if (startTimeMatch && endTimeMatch) {
+            let startHour = parseInt(startTimeMatch[1]);
+            const startMinute = parseInt(startTimeMatch[2]);
+            const startPeriod = startTimeMatch[3].toUpperCase();
+
+            if (startPeriod === 'PM' && startHour !== 12) {
+              startHour += 12;
+            } else if (startPeriod === 'AM' && startHour === 12) {
+              startHour = 0;
+            }
+
+            let endHour = parseInt(endTimeMatch[1]);
+            const endMinute = parseInt(endTimeMatch[2]);
+            const endPeriod = endTimeMatch[3].toUpperCase();
+
+            if (endPeriod === 'PM' && endHour !== 12) {
+              endHour += 12;
+            } else if (endPeriod === 'AM' && endHour === 12) {
+              endHour = 0;
+            }
+
+            const year = appointmentDate.getFullYear();
+            const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(appointmentDate.getDate()).padStart(2, '0');
+
+            const startTimeStr = `${year}-${month}-${day}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00+11:00`;
+            const endTimeStr = `${year}-${month}-${day}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+11:00`;
+
+            const startDateTimeUTC = new Date(startTimeStr);
+            const endDateTimeUTC = new Date(endTimeStr);
+
+            const calendarResult =
+              await GoogleCalendarService.createCalendarEvent({
+                appointmentId: fullAppointment.id,
+                counselorId: fullAppointment.counselor_id,
+                clientEmail: fullAppointment.client.email,
+                clientName: `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`,
+                startDateTime: startDateTimeUTC,
+                endDateTime: endDateTimeUTC,
+                timeZone: businessTimeZone,
+              });
+
+            if (calendarResult) {
+              meetingLink = calendarResult.meetingLink ?? undefined;
+              await prisma.appointment.update({
+                where: { id: fullAppointment.id },
+                data: { event_id: calendarResult.eventId },
+              });
+            }
+          }
+        } catch (calendarError) {
+          console.error('Error creating Google Calendar event:', calendarError);
+        }
+      }
+
+      // Send confirmation emails
+      try {
+        const sendMail = (await import('../../utils/mailer')).default;
+        const AppointmentUtils = (await import('./appointment.utils')).default;
+
+        const clientName = `${fullAppointment.client.first_name} ${fullAppointment.client.last_name}`;
+        const appointmentDate = new Date(
+          fullAppointment.date,
+        ).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        const appointmentTime = `${subtractTimezoneOffset(fullAppointment.time_slot.start_time)} - ${subtractTimezoneOffset(fullAppointment.time_slot.end_time)}`;
+
+        const clientEmailBody =
+          AppointmentUtils.createAppointmentConfirmationEmail({
+            clientName,
+            counselorName: fullAppointment.counselor.name,
+            appointmentDate,
+            appointmentTime,
+            sessionType: fullAppointment.session_type,
+            meetingLink,
+            counselorId: fullAppointment.counselor_id,
+          });
+
+        const counselorEmailBody =
+          AppointmentUtils.createCounselorNotificationEmail({
+            counselorName: fullAppointment.counselor.name,
+            clientName,
+            appointmentDate,
+            appointmentTime,
+            sessionType: fullAppointment.session_type,
+            clientEmail: fullAppointment.client.email,
+            clientPhone: fullAppointment.client.phone,
+            meetingLink,
+            notes: fullAppointment.notes ?? undefined,
+          });
+
+        await Promise.all([
+          sendMail(
+            fullAppointment.client.email,
+            'Payment Confirmed - Appointment Confirmed',
+            clientEmailBody,
+          ),
+          sendMail(
+            fullAppointment.counselor.email,
+            'Payment Received - Appointment Confirmed',
+            counselorEmailBody,
+          ),
+        ]);
+
+        console.log(
+          `Confirmation emails sent after manual payment confirmation`,
+        );
+      } catch (emailError) {
+        console.error('Error sending confirmation emails:', emailError);
+      }
+    } catch (error) {
+      console.error('Error in post-payment confirmation tasks:', error);
+    }
+  });
+
+  return result;
+};
+
+const MarkYetToPay = async (appointmentId: string, counselorId: string) => {
+  // Get appointment with payment and time slot details
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      payment: true,
+      time_slot: true,
+      client: true,
+      counselor: true,
+    },
+  });
+
+  if (!appointment) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Appointment not found');
+  }
+
+  // Verify counselor owns this appointment
+  if (appointment.counselor_id !== counselorId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      'You are not authorized to update this appointment',
+    );
+  }
+
+  // Check if appointment has payment_token (manual booking)
+  if (!appointment.payment_token) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'This is not a manual booking with payment',
+    );
+  }
+
+  // Check if appointment is in PENDING status
+  if (appointment.status !== 'PENDING') {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Cannot mark as yet to pay. Appointment status is ${appointment.status}`,
+    );
+  }
+
+  // Check if time slot is in PROCESSING status
+  if (appointment.time_slot.status !== 'PROCESSING') {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Cannot mark as yet to pay. Time slot status is ${appointment.time_slot.status}`,
+    );
+  }
+
+  // Update in transaction
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Update time slot status to BOOKED
+    await tx.timeSlot.update({
+      where: { id: appointment.time_slot_id },
+      data: { status: 'BOOKED' },
+    });
+
+    // 2. Update appointment status to CONFIRMED
+    const updatedAppointment = await tx.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'CONFIRMED' },
+      include: {
+        client: true,
+        counselor: true,
+        time_slot: true,
+        payment: true,
+      },
+    });
+
+    // 3. Update payment status to YET_TO_PAY
+    if (appointment.payment) {
+      await tx.payment.update({
+        where: { id: appointment.payment.id },
+        data: {
+          status: 'YET_TO_PAY',
+          payment_method: 'manual',
+          transaction_id: `yet-to-pay-${Date.now()}`,
+          processed_at: new Date(),
+        },
+      });
+    }
+
+    return updatedAppointment;
+  });
+
+  // Create Google Calendar event and send confirmation email asynchronously
+  setImmediate(async () => {
+    try {
+      const fullAppointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          client: true,
+          counselor: true,
+          time_slot: {
+            include: {
+              calendar: true,
+            },
+          },
+        },
+      });
+
+      if (!fullAppointment) {
+        console.error('Appointment not found after marking yet to pay');
         return;
       }
 
@@ -1409,24 +1796,24 @@ const ConfirmManualPayment = async (
         await Promise.all([
           sendMail(
             fullAppointment.client.email,
-            'Payment Confirmed - Appointment Confirmed',
+            'Appointment Confirmed - Payment Pending',
             clientEmailBody,
           ),
           sendMail(
             fullAppointment.counselor.email,
-            'Payment Received - Appointment Confirmed',
+            'Appointment Confirmed - Payment Pending',
             counselorEmailBody,
           ),
         ]);
 
         console.log(
-          `Confirmation emails sent after manual payment confirmation`,
+          `Confirmation emails sent after marking yet to pay`,
         );
       } catch (emailError) {
         console.error('Error sending confirmation emails:', emailError);
       }
     } catch (error) {
-      console.error('Error in post-payment confirmation tasks:', error);
+      console.error('Error in post-yet-to-pay tasks:', error);
     }
   });
 
@@ -1443,6 +1830,7 @@ const AppointmentService = {
   CreateManualAppointmentWithPayment,
   GetAppointmentByToken,
   ConfirmManualPayment,
+  MarkYetToPay,
 };
 
 export default AppointmentService;
