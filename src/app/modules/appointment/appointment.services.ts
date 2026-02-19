@@ -437,6 +437,7 @@ const RescheduleAppointmentById = async (
           date: newTimeSlot.calendar.date,
           status: 'CONFIRMED', // Set status to confirmed after rescheduling
           is_rescheduled: true,
+          session_type: newTimeSlot.type, // Update session type to match new slot
         },
         include: {
           time_slot: {
@@ -450,7 +451,7 @@ const RescheduleAppointmentById = async (
         },
       });
 
-      // Return values needed for post-transaction Google Calendar update
+      // Return values needed for post-transaction Google Calendar update and email
       return {
         updatedAppointment,
         eventId: currentAppointment.event_id,
@@ -459,6 +460,13 @@ const RescheduleAppointmentById = async (
         endTimeText: newTimeSlot.end_time as any,
         clientEmail: currentAppointment.client.email,
         clientName: `${currentAppointment.client.first_name} ${currentAppointment.client.last_name}`,
+        oldSessionType: currentAppointment.session_type,
+        newSessionType: newTimeSlot.type,
+        existingMeetingLink: currentAppointment.meeting?.link,
+        counselorEmail: currentAppointment.counselor.email,
+        counselorName: currentAppointment.counselor.name,
+        clientPhone: currentAppointment.client.phone,
+        notes: currentAppointment.notes,
       };
     },
     {
@@ -476,34 +484,33 @@ const RescheduleAppointmentById = async (
     endTimeText,
     clientEmail,
     clientName,
+    oldSessionType,
+    newSessionType,
+    existingMeetingLink,
+    counselorEmail,
+    counselorName,
+    clientPhone,
+    notes,
   } = txResult;
 
-  // After the transaction, update Google Calendar (external API) asynchronously
-  if (eventId) {
-    // Use setImmediate to defer Google Calendar update to next tick
-    // This prevents blocking the response and reduces transaction time
-    setImmediate(async () => {
-      try {
-        const businessTimeZone = 'Australia/Sydney'; // TODO: move to config
+  // After the transaction, handle Google Calendar update and send email notifications asynchronously
+  setImmediate(async () => {
+    try {
+      const businessTimeZone = 'Australia/Sydney'; // TODO: move to config
 
-        // Get the appointment date (same as in payment service)
-        const appointmentDateObj = new Date(appointmentDate);
+      // Parse time strings for Google Calendar operations
+      const appointmentDateObj = new Date(appointmentDate);
+      const startTimeMatch = (startTimeText as string).match(
+        /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+      );
+      const endTimeMatch = (endTimeText as string).match(
+        /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+      );
 
-        // Parse the time strings and create proper datetime objects in the business timezone
-        const startTimeMatch = (startTimeText as string).match(
-          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
-        );
-        const endTimeMatch = (endTimeText as string).match(
-          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
-        );
+      let utcStartTime: Date | undefined;
+      let utcEndTime: Date | undefined;
 
-        if (!startTimeMatch || !endTimeMatch) {
-          console.error(
-            'Invalid time format in time slot for Google Calendar update',
-          );
-          return;
-        }
-
+      if (startTimeMatch && endTimeMatch) {
         // Parse start time
         let startHour = parseInt(startTimeMatch[1]);
         const startMinute = parseInt(startTimeMatch[2]);
@@ -539,8 +546,8 @@ const RescheduleAppointmentById = async (
         const endTimeStr = `${year}-${month}-${day}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00+11:00`;
 
         // Convert to UTC Date objects
-        const utcStartTime = new Date(startTimeStr);
-        const utcEndTime = new Date(endTimeStr);
+        utcStartTime = new Date(startTimeStr);
+        utcEndTime = new Date(endTimeStr);
 
         console.log('=== RESCHEDULE TIMEZONE DEBUG ===');
         console.log('Original time slot:', startTimeText, '-', endTimeText);
@@ -552,28 +559,154 @@ const RescheduleAppointmentById = async (
           utcEndTime.toISOString(),
         );
         console.log('Business timezone:', businessTimeZone);
+      }
 
-        await GoogleCalendarService.rescheduleCalendarEvent(
-          eventId,
-          counselorId,
+      // 1. Handle Google Calendar reschedule if event exists
+      if (eventId && utcStartTime && utcEndTime) {
+        try {
+          await GoogleCalendarService.rescheduleCalendarEvent(
+            eventId,
+            counselorId,
+            {
+              appointmentId,
+              clientEmail,
+              clientName,
+              startDateTime: utcStartTime,
+              endDateTime: utcEndTime,
+              timeZone: businessTimeZone,
+            },
+          );
+        } catch (calendarError) {
+          console.error(
+            'Failed to reschedule Google Calendar event (async):',
+            calendarError,
+          );
+          // Do not throw - DB changes already committed
+        }
+      }
+
+      // 2. Determine meet link based on session type change
+      let meetingLink: string | undefined;
+
+      if (newSessionType === 'ONLINE') {
+        if (oldSessionType === 'ONLINE' && existingMeetingLink) {
+          // ONLINE -> ONLINE: Use existing meet link
+          meetingLink = existingMeetingLink;
+        } else {
+          // IN_PERSON -> ONLINE (or ONLINE without existing link): Generate new meet link
+          // Check if a meeting record already exists from the updated appointment
+          const freshAppointment = await prisma.appointment.findUnique({
+            where: { id: appointmentId },
+            include: { meeting: true },
+          });
+
+          if (freshAppointment?.meeting?.link) {
+            meetingLink = freshAppointment.meeting.link;
+          } else if (utcStartTime && utcEndTime) {
+            // Create a new Google Calendar event with meet link
+            try {
+              const calendarResult =
+                await GoogleCalendarService.createCalendarEvent({
+                  appointmentId,
+                  counselorId,
+                  clientEmail,
+                  clientName,
+                  startDateTime: utcStartTime,
+                  endDateTime: utcEndTime,
+                  timeZone: businessTimeZone,
+                });
+
+              if (calendarResult) {
+                meetingLink = calendarResult.meetingLink ?? undefined;
+                // Update appointment with event_id
+                await prisma.appointment.update({
+                  where: { id: appointmentId },
+                  data: { event_id: calendarResult.eventId },
+                });
+                console.log(
+                  `New Google Calendar event created for IN_PERSON -> ONLINE reschedule, appointment ${appointmentId}`,
+                );
+              }
+            } catch (meetError) {
+              console.error(
+                'Failed to create meet link for session type change:',
+                meetError,
+              );
+            }
+          }
+        }
+      }
+      // ONLINE -> IN_PERSON or IN_PERSON -> IN_PERSON: meetingLink stays undefined
+
+      // 3. Send reschedule notification emails to both client and counselor
+      try {
+        const sendMail = (await import('../../utils/mailer')).default;
+        const AppointmentUtils = (await import('./appointment.utils')).default;
+
+        const formattedDate = new Date(appointmentDate).toLocaleDateString(
+          'en-US',
           {
-            appointmentId,
-            clientEmail,
-            clientName,
-            startDateTime: utcStartTime,
-            endDateTime: utcEndTime,
-            timeZone: businessTimeZone,
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
           },
         );
-      } catch (calendarError) {
-        console.error(
-          'Failed to reschedule Google Calendar event (async):',
-          calendarError,
+        const appointmentTime = `${subtractTimezoneOffset(startTimeText)} - ${subtractTimezoneOffset(endTimeText)}`;
+
+        // Email to client
+        const clientEmailBody =
+          AppointmentUtils.createAppointmentConfirmationEmail({
+            clientName,
+            counselorName,
+            appointmentDate: formattedDate,
+            appointmentTime,
+            sessionType: newSessionType,
+            meetingLink,
+            counselorId,
+          });
+
+        // Email to counselor
+        const counselorEmailBody =
+          AppointmentUtils.createCounselorNotificationEmail({
+            counselorName,
+            clientName,
+            appointmentDate: formattedDate,
+            appointmentTime,
+            sessionType: newSessionType,
+            clientEmail,
+            clientPhone,
+            meetingLink,
+            notes: notes ?? undefined,
+          });
+
+        // Send both emails in parallel
+        await Promise.all([
+          sendMail(
+            clientEmail,
+            'Appointment Rescheduled - Alexander Rodriguez Counseling',
+            clientEmailBody,
+          ),
+          sendMail(
+            counselorEmail,
+            'Appointment Rescheduled - Alexander Rodriguez Counseling',
+            counselorEmailBody,
+          ),
+        ]);
+
+        console.log(
+          `Reschedule notification emails sent to client: ${clientEmail} and counselor: ${counselorEmail}`,
         );
-        // Do not throw - DB changes already committed
+      } catch (emailError) {
+        console.error(
+          'Failed to send reschedule notification emails:',
+          emailError,
+        );
       }
-    });
-  }
+    } catch (error) {
+      console.error('Error in post-reschedule tasks:', error);
+    }
+  });
 
   return updatedAppointment;
 };

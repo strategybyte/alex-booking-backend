@@ -318,7 +318,7 @@ const ForgotPassword = async (payload: { email: string }) => {
   });
 
   // Create reset link
-  const resetLink = `${config.frontend_base_url}/reset-password?token=${resetToken}`;
+  const resetLink = `https://portal.alexrodriguez.com.au/reset-password?token=${resetToken}`;
 
   // Email template
   const emailBody = `

@@ -148,6 +148,16 @@ const createAppointmentConfirmationEmail = (
                         <span class="detail-label">Session Type:</span>
                         <span class="detail-value">${data.sessionType === 'ONLINE' ? 'Online Session' : 'In-Person Session'}</span>
                     </div>
+                    ${
+                      data.sessionType === 'IN_PERSON'
+                        ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Location:</span>
+                        <span class="detail-value">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</span>
+                    </div>
+                    `
+                        : ''
+                    }
                 </div>
 
                 ${
@@ -161,8 +171,19 @@ const createAppointmentConfirmationEmail = (
                     : ''
                 }
 
+                ${
+                  data.sessionType === 'IN_PERSON'
+                    ? `
+                <div class="meeting-link" style="background-color: #e8f5e9;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold;">In-Person Session Location:</p>
+                    <p style="margin: 0; font-size: 16px; color: #333;">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</p>
+                </div>
+                `
+                    : ''
+                }
+
                 <div class="note">
-                    <strong>Important:</strong> Please join the meeting a few minutes early to ensure a smooth start to your session.
+                    <strong>Important:</strong> ${data.sessionType === 'IN_PERSON' ? 'Please arrive a few minutes early to ensure a smooth start to your session.' : 'Please join the meeting a few minutes early to ensure a smooth start to your session.'}
                 </div>
 
                 <div class="divider"></div>
@@ -350,6 +371,16 @@ const createPaymentLinkEmail = (data: PaymentLinkEmailData): string => {
                         <span class="detail-label">Session Type:</span>
                         <span class="detail-value">${data.sessionType === 'ONLINE' ? 'Online Session' : 'In-Person Session'}</span>
                     </div>
+                    ${
+                      data.sessionType === 'IN_PERSON'
+                        ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Location:</span>
+                        <span class="detail-value">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</span>
+                    </div>
+                    `
+                        : ''
+                    }
                 </div>
 
                 <div class="payment-amount">
@@ -532,6 +563,16 @@ const createCounselorNotificationEmail = (
                         <span class="detail-value">${data.sessionType === 'ONLINE' ? 'Online Session' : 'In-Person Session'}</span>
                     </div>
                     ${
+                      data.sessionType === 'IN_PERSON'
+                        ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Location:</span>
+                        <span class="detail-value">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</span>
+                    </div>
+                    `
+                        : ''
+                    }
+                    ${
                       data.notes
                         ? `
                     <div class="detail-row">
@@ -554,8 +595,19 @@ const createCounselorNotificationEmail = (
                     : ''
                 }
 
+                ${
+                  data.sessionType === 'IN_PERSON'
+                    ? `
+                <div class="meeting-link" style="background-color: #e8f5e9;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold;">In-Person Session Location:</p>
+                    <p style="margin: 0; font-size: 16px; color: #333;">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</p>
+                </div>
+                `
+                    : ''
+                }
+
                 <div class="note">
-                    <strong>Reminder:</strong> Please ensure you're prepared for this session. The client has been notified and will receive the same meeting details.
+                    <strong>Reminder:</strong> Please ensure you're prepared for this session. The client has been notified and will receive the same ${data.sessionType === 'IN_PERSON' ? 'location' : 'meeting'} details.
                 </div>
 
                 <p style="margin-top: 25px;">This appointment has been confirmed and added to your calendar.</p>
@@ -777,6 +829,16 @@ const createConfirmedWithPaymentEmail = (
                         <span class="detail-label">Session Type:</span>
                         <span class="detail-value">${data.sessionType === 'ONLINE' ? 'Online Session' : 'In-Person Session'}</span>
                     </div>
+                    ${
+                      data.sessionType === 'IN_PERSON'
+                        ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Location:</span>
+                        <span class="detail-value">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</span>
+                    </div>
+                    `
+                        : ''
+                    }
                 </div>
 
                 ${
@@ -785,6 +847,17 @@ const createConfirmedWithPaymentEmail = (
                 <div class="meeting-link">
                     <p style="margin: 0 0 10px 0; font-weight: bold;">Join your online session:</p>
                     <a href="${data.meetingLink}" target="_blank">${data.meetingLink}</a>
+                </div>
+                `
+                    : ''
+                }
+
+                ${
+                  data.sessionType === 'IN_PERSON'
+                    ? `
+                <div class="meeting-link" style="background-color: #e8f5e9;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold;">In-Person Session Location:</p>
+                    <p style="margin: 0; font-size: 16px; color: #333;">Suite 207a, 30 Campbell St, Blacktown, NSW 2148, Australia</p>
                 </div>
                 `
                     : ''
