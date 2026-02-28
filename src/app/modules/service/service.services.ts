@@ -59,7 +59,22 @@ const GetAllServices = async (filters: IServiceFilters) => {
 const GetServiceById = async (serviceId: string) => {
   const service = await prisma.service.findUnique({
     where: { id: serviceId },
-    include: { division: true },
+    include: {
+      division: true,
+      user_services: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profile_picture: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!service) {

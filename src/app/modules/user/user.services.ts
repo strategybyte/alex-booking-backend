@@ -371,6 +371,44 @@ const GetCounselorById = async (counselorId: string) => {
         },
         take: 50, // Limit to last 50 transactions
       },
+      // Divisions assigned to this counselor
+      user_divisions: {
+        select: {
+          id: true,
+          created_at: true,
+          division: {
+            select: {
+              id: true,
+              type: true,
+              description: true,
+              is_active: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      },
+      // Services assigned to this counselor
+      user_services: {
+        select: {
+          id: true,
+          created_at: true,
+          service: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              session_type: true,
+              base_amount: true,
+              currency: true,
+              is_active: true,
+              division: {
+                select: { id: true, type: true },
+              },
+            },
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      },
     },
   });
 

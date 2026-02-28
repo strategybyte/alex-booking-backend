@@ -39,6 +39,19 @@ const GetDivisionById = async (divisionId: string) => {
         where: { is_active: true },
         orderBy: { name: 'asc' },
       },
+      user_divisions: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              specialization: true,
+              profile_picture: true,
+            },
+          },
+        },
+      },
       _count: { select: { services: true, user_divisions: true } },
     },
   });

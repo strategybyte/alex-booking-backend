@@ -1,6 +1,6 @@
 import { Payment, PaymentStatus } from '@prisma/client';
 import prisma from '../../utils/prisma';
-import { stripe, dollarsToCents } from './payment.utils';
+import { stripe, dollarsToCents, calculateStripeFee } from './payment.utils';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import Stripe from 'stripe';
@@ -41,7 +41,7 @@ const subtractTimezoneOffset = (timeString: string): string => {
 
 interface CreatePaymentIntentData {
   appointment_id: string;
-  amount: number;
+  amount?: number;
   currency?: string;
 }
 
@@ -95,12 +95,26 @@ const createPaymentIntent = async (
   }
 
   const currency = data.currency || 'AUD';
-  const amountInCents = dollarsToCents(data.amount);
-  const baseAmount = appointment.service
-    ? Number(appointment.service.base_amount)
-    : undefined;
-  const stripeFeeAmount =
-    baseAmount !== undefined ? data.amount - baseAmount : undefined;
+
+  let chargeAmount: number;
+  let baseAmount: number | undefined;
+  let stripeFeeAmount: number | undefined;
+
+  if (appointment.service) {
+    baseAmount = Number(appointment.service.base_amount);
+    const { stripeFee, total } = calculateStripeFee(baseAmount);
+    stripeFeeAmount = stripeFee;
+    chargeAmount = total;
+  } else if (data.amount) {
+    chargeAmount = data.amount;
+  } else {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Amount is required when no service is linked to the appointment',
+    );
+  }
+
+  const amountInCents = dollarsToCents(chargeAmount);
 
   try {
     // Create Stripe payment intent
@@ -123,7 +137,7 @@ const createPaymentIntent = async (
       payment = await prisma.payment.update({
         where: { id: existingPayment.id },
         data: {
-          amount: data.amount,
+          amount: chargeAmount,
           currency: currency,
           status: 'PENDING' as PaymentStatus,
           payment_method: 'stripe',
@@ -139,7 +153,7 @@ const createPaymentIntent = async (
         data: {
           appointment_id: data.appointment_id,
           client_id: appointment.client_id,
-          amount: data.amount,
+          amount: chargeAmount,
           currency: currency,
           status: 'PENDING' as PaymentStatus,
           payment_method: 'stripe',

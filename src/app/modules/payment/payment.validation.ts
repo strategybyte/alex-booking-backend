@@ -6,7 +6,8 @@ const createPaymentIntentSchema = z.object({
     amount: z
       .number()
       .min(1, 'Amount must be at least $1')
-      .max(10000, 'Amount cannot exceed $10,000'),
+      .max(10000, 'Amount cannot exceed $10,000')
+      .optional(),
     currency: z.string().length(3).optional(),
   }),
 });

@@ -16,6 +16,16 @@ export const centsToDollars = (cents: number): number => {
   return cents / 100;
 };
 
+// Calculate Stripe processing fee and total charge amount
+// Stripe fee: 2.9% + $0.30 (added on top of base amount)
+export const calculateStripeFee = (
+  baseAmount: number,
+): { stripeFee: number; total: number } => {
+  const stripeFee = Math.round((baseAmount * 0.029 + 0.3) * 100) / 100;
+  const total = Math.round((baseAmount + stripeFee) * 100) / 100;
+  return { stripeFee, total };
+};
+
 // Validate webhook signature
 export const constructWebhookEvent = (
   payload: Buffer | string,
