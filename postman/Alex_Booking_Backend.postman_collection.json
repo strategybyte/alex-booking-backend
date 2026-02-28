@@ -1,0 +1,1290 @@
+{
+  "info": {
+    "name": "Alex Booking Backend",
+    "description": "Complete API collection for Alex Booking Backend — covers Auth, Divisions, Services, User Management, Public Booking Flow, Private Appointments, and Payments.\n\n**Setup:**\n1. Set `base_url` variable to your server (default: http://localhost:5000/api/v1)\n2. Run **Login** first — token is auto-saved\n3. Follow folder order for a complete test flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "division_id", "value": "", "type": "string" },
+    { "key": "service_id", "value": "", "type": "string" },
+    { "key": "counselor_id", "value": "", "type": "string" },
+    { "key": "appointment_id", "value": "", "type": "string" },
+    { "key": "time_slot_id", "value": "", "type": "string" },
+    { "key": "calendar_id", "value": "", "type": "string" },
+    { "key": "payment_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "description": "Login to get token. Token is auto-saved to {{token}} variable.",
+      "item": [
+        {
+          "name": "Login (SUPER_ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.access_token) {",
+                  "  pm.collectionVariables.set('token', res.data.access_token);",
+                  "  console.log('Token saved:', res.data.access_token.substring(0, 20) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "Login as SUPER_ADMIN. Token auto-saved to {{token}}."
+          }
+        },
+        {
+          "name": "Login (Counselor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.access_token) {",
+                  "  pm.collectionVariables.set('token', res.data.access_token);",
+                  "  console.log('Counselor token saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"counselor@example.com\",\n  \"password\": \"Pass@123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "Login as a COUNSELOR."
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] },
+            "description": "Get logged-in user profile. Requires auth."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Divisions",
+      "description": "Division CRUD.\n- GET (public) — no token needed\n- POST / PATCH / DELETE — SUPER_ADMIN only\n\nDivision types: ALLIED_HEALTH | LIFE_COACHING | COUNSELLING",
+      "item": [
+        {
+          "name": "Get All Divisions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has data array', () => pm.expect(res.data).to.be.an('array'));",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('division_id', res.data[0].id);",
+                  "  console.log('division_id set to:', res.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] },
+            "description": "Public — no auth needed. Returns all divisions with service and user counts."
+          }
+        },
+        {
+          "name": "Get Division By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has division id', () => pm.expect(res.data).to.have.property('id'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/divisions/{{division_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["divisions", "{{division_id}}"]
+            },
+            "description": "Public — returns division with its active services."
+          }
+        },
+        {
+          "name": "Create Division (ALLIED_HEALTH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('division_id', res.data.id);",
+                  "  console.log('division_id set to:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"ALLIED_HEALTH\",\n  \"description\": \"Allied Health services including physiotherapy and occupational therapy\",\n  \"is_active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] },
+            "description": "SUPER_ADMIN only. type must be one of: ALLIED_HEALTH | LIFE_COACHING | COUNSELLING. Each type can only be created once."
+          }
+        },
+        {
+          "name": "Create Division (LIFE_COACHING)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"LIFE_COACHING\",\n  \"description\": \"Life coaching and personal development services\",\n  \"is_active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] }
+          }
+        },
+        {
+          "name": "Create Division (COUNSELLING)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"COUNSELLING\",\n  \"description\": \"Mental health counselling and therapy services\",\n  \"is_active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] }
+          }
+        },
+        {
+          "name": "Update Division",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description for this division\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/divisions/{{division_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["divisions", "{{division_id}}"]
+            },
+            "description": "SUPER_ADMIN only. Only description and is_active can be updated (type is immutable)."
+          }
+        },
+        {
+          "name": "Delete Division",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/divisions/{{division_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["divisions", "{{division_id}}"]
+            },
+            "description": "SUPER_ADMIN only. Cascades — deletes all services under this division."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Services",
+      "description": "Service CRUD.\n- GET (public) — supports filters: division_id, session_type, min_price, max_price, is_active\n- POST / PATCH / DELETE — SUPER_ADMIN only",
+      "item": [
+        {
+          "name": "Get All Services (no filter)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has data array', () => pm.expect(res.data).to.be.an('array'));",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('service_id', res.data[0].id);",
+                  "  console.log('service_id set to:', res.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/services", "host": ["{{base_url}}"], "path": ["services"] },
+            "description": "Public — returns all services. No filters applied."
+          }
+        },
+        {
+          "name": "Get Services — Filter by Division",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services?division_id={{division_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [{ "key": "division_id", "value": "{{division_id}}" }]
+            },
+            "description": "Filter by division_id. Public."
+          }
+        },
+        {
+          "name": "Get Services — Filter by Session Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services?session_type=ONLINE",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [{ "key": "session_type", "value": "ONLINE" }]
+            }
+          }
+        },
+        {
+          "name": "Get Services — Filter by Price Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services?min_price=50&max_price=200",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [
+                { "key": "min_price", "value": "50" },
+                { "key": "max_price", "value": "200" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Services — Active Only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services?is_active=true",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [{ "key": "is_active", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Get Services — Combined Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services?division_id={{division_id}}&session_type=IN_PERSON&min_price=80&is_active=true",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [
+                { "key": "division_id", "value": "{{division_id}}" },
+                { "key": "session_type", "value": "IN_PERSON" },
+                { "key": "min_price", "value": "80" },
+                { "key": "is_active", "value": "true" }
+              ]
+            },
+            "description": "All filters combined — all are optional, any combination works."
+          }
+        },
+        {
+          "name": "Get Service By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services/{{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["services", "{{service_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Service (ONLINE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('service_id', res.data.id);",
+                  "  console.log('service_id set to:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"division_id\": \"{{division_id}}\",\n  \"name\": \"Individual Counselling Session\",\n  \"description\": \"One-on-one online counselling session with a licensed counsellor\",\n  \"session_type\": \"ONLINE\",\n  \"base_amount\": 150.00,\n  \"currency\": \"AUD\",\n  \"is_active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/services", "host": ["{{base_url}}"], "path": ["services"] },
+            "description": "SUPER_ADMIN only.\n- division_id must exist\n- session_type: ONLINE | IN_PERSON\n- base_amount: positive decimal\n- Unique per (division_id + name + session_type)"
+          }
+        },
+        {
+          "name": "Create Service (IN_PERSON)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"division_id\": \"{{division_id}}\",\n  \"name\": \"Individual Counselling Session\",\n  \"description\": \"One-on-one in-person counselling session\",\n  \"session_type\": \"IN_PERSON\",\n  \"base_amount\": 180.00,\n  \"currency\": \"AUD\",\n  \"is_active\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/services", "host": ["{{base_url}}"], "path": ["services"] }
+          }
+        },
+        {
+          "name": "Update Service",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated service description\",\n  \"base_amount\": 165.00,\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/services/{{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["services", "{{service_id}}"]
+            },
+            "description": "SUPER_ADMIN only. All fields optional. Cannot change division_id."
+          }
+        },
+        {
+          "name": "Deactivate Service",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/services/{{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["services", "{{service_id}}"]
+            },
+            "description": "Deactivated services cannot be selected in new appointments."
+          }
+        },
+        {
+          "name": "Delete Service",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/services/{{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["services", "{{service_id}}"]
+            },
+            "description": "SUPER_ADMIN only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. User — Division & Service Management",
+      "description": "Assign/remove divisions and services to/from counselors. All endpoints require SUPER_ADMIN token.",
+      "item": [
+        {
+          "name": "Get Counselors (to find counselor_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('counselor_id', res.data[0].id);",
+                  "  console.log('counselor_id set to:', res.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors", "host": ["{{base_url}}"], "path": ["users", "counselors"] },
+            "description": "List all counselors. First result auto-saved to {{counselor_id}}."
+          }
+        },
+        {
+          "name": "Divisions",
+          "item": [
+            {
+              "name": "List Counselor Divisions",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const res = pm.response.json();",
+                      "pm.test('Has data array', () => pm.expect(res.data).to.be.an('array'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions",
+                  "host": ["{{base_url}}"],
+                  "path": ["users", "counselors", "{{counselor_id}}", "divisions"]
+                },
+                "description": "List all divisions assigned to this counselor."
+              }
+            },
+            {
+              "name": "Assign Division to Counselor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"division_id\": \"{{division_id}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions",
+                  "host": ["{{base_url}}"],
+                  "path": ["users", "counselors", "{{counselor_id}}", "divisions"]
+                },
+                "description": "Assign a division to a counselor. Returns 409 if already assigned."
+              }
+            },
+            {
+              "name": "Remove Division from Counselor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions/{{division_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["users", "counselors", "{{counselor_id}}", "divisions", "{{division_id}}"]
+                },
+                "description": "Remove a division from a counselor."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Services",
+          "item": [
+            {
+              "name": "List Counselor Services",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/users/counselors/{{counselor_id}}/services",
+                  "host": ["{{base_url}}"],
+                  "path": ["users", "counselors", "{{counselor_id}}", "services"]
+                },
+                "description": "List all services assigned to this counselor."
+              }
+            },
+            {
+              "name": "Assign Service to Counselor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"service_id\": \"{{service_id}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/users/counselors/{{counselor_id}}/services",
+                  "host": ["{{base_url}}"],
+                  "path": ["users", "counselors", "{{counselor_id}}", "services"]
+                },
+                "description": "Assign a service to a counselor. Returns 409 if already assigned."
+              }
+            },
+            {
+              "name": "Remove Service from Counselor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/users/counselors/{{counselor_id}}/services/{{service_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["users", "counselors", "{{counselor_id}}", "services", "{{service_id}}"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Public Users (with Filters)",
+      "description": "Browse counselors publicly. Now supports ?service_id and ?division_id filters.",
+      "item": [
+        {
+          "name": "Get All Counselors (no filter)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has data array', () => pm.expect(res.data).to.be.an('array'));",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('counselor_id', res.data[0].id);",
+                  "  console.log('counselor_id set to:', res.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-users/counselors",
+              "host": ["{{base_url}}"],
+              "path": ["public-users", "counselors"]
+            },
+            "description": "Public. Returns all counselors with next_available date."
+          }
+        },
+        {
+          "name": "Get Counselors — Filter by Division",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-users/counselors?division_id={{division_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-users", "counselors"],
+              "query": [{ "key": "division_id", "value": "{{division_id}}" }]
+            },
+            "description": "Returns only counselors assigned to this division."
+          }
+        },
+        {
+          "name": "Get Counselors — Filter by Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-users/counselors?service_id={{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-users", "counselors"],
+              "query": [{ "key": "service_id", "value": "{{service_id}}" }]
+            },
+            "description": "Returns only counselors who offer this service."
+          }
+        },
+        {
+          "name": "Get Counselors — Filter by Division + Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-users/counselors?division_id={{division_id}}&service_id={{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-users", "counselors"],
+              "query": [
+                { "key": "division_id", "value": "{{division_id}}" },
+                { "key": "service_id", "value": "{{service_id}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Public Calendar",
+      "description": "Get counselor calendars and time slots. Needed before booking.",
+      "item": [
+        {
+          "name": "Get Counselor Calendar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('calendar_id', res.data[0].id);",
+                  "  console.log('calendar_id set to:', res.data[0].id);",
+                  "  if (res.data[0].time_slots && res.data[0].time_slots.length > 0) {",
+                  "    const available = res.data[0].time_slots.find(s => s.status === 'AVAILABLE');",
+                  "    if (available) {",
+                  "      pm.collectionVariables.set('time_slot_id', available.id);",
+                  "      console.log('time_slot_id set to:', available.id);",
+                  "    }",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-calenders/{{counselor_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-calenders", "{{counselor_id}}"]
+            },
+            "description": "Get all calendar dates for a counselor. Saves first calendar_id and an available time_slot_id."
+          }
+        },
+        {
+          "name": "Get Counselor Slots by Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-calenders/{{counselor_id}}/slots/2026-03-15",
+              "host": ["{{base_url}}"],
+              "path": ["public-calenders", "{{counselor_id}}", "slots", "2026-03-15"]
+            },
+            "description": "Get available slots for a specific date. Replace date as needed."
+          }
+        },
+        {
+          "name": "Check Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-calenders/check-availability?counselor_id={{counselor_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-calenders", "check-availability"],
+              "query": [{ "key": "counselor_id", "value": "{{counselor_id}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Public Appointments (Booking Flow)",
+      "description": "Public booking flow — no auth needed.\n\n**Flow:** Get slots → Create appointment (with service_id) → Create payment intent → Pay via Stripe",
+      "item": [
+        {
+          "name": "Create Public Appointment (with service_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('appointment_id', res.data.id);",
+                  "  console.log('appointment_id set to:', res.data.id);",
+                  "}",
+                  "pm.test('requires_payment is true', () => pm.expect(res.data.requires_payment).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Smith\",\n  \"email\": \"john.smith@example.com\",\n  \"phone\": \"+61412345678\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"gender\": \"MALE\",\n  \"sessionType\": \"ONLINE\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{time_slot_id}}\",\n  \"counselorId\": \"{{counselor_id}}\",\n  \"serviceId\": \"{{service_id}}\",\n  \"notes\": \"First session — experiencing anxiety and work stress\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/public-appointments",
+              "host": ["{{base_url}}"],
+              "path": ["public-appointments"]
+            },
+            "description": "Creates appointment with PENDING status. serviceId is optional but recommended — links pricing to the appointment.\n\nValidation rules for serviceId:\n- Service must exist\n- Service must be is_active = true\n- Service session_type must match sessionType"
+          }
+        },
+        {
+          "name": "Create Public Appointment (without service_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('appointment_id', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"phone\": \"+61498765432\",\n  \"dateOfBirth\": \"1985-11-20\",\n  \"gender\": \"FEMALE\",\n  \"sessionType\": \"IN_PERSON\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{time_slot_id}}\",\n  \"counselorId\": \"{{counselor_id}}\",\n  \"notes\": \"Looking for in-person support\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/public-appointments",
+              "host": ["{{base_url}}"],
+              "path": ["public-appointments"]
+            },
+            "description": "serviceId omitted — appointment created without a linked service. Amount must be passed manually to payment intent."
+          }
+        },
+        {
+          "name": "Get Appointment By ID (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-appointments", "{{appointment_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Appointment By Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-appointments/by-token?token=REPLACE_WITH_TOKEN",
+              "host": ["{{base_url}}"],
+              "path": ["public-appointments", "by-token"],
+              "query": [{ "key": "token", "value": "REPLACE_WITH_TOKEN" }]
+            },
+            "description": "Used in manual-with-payment flow. Token is emailed to client."
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Private Appointments",
+      "description": "Private appointment management for counselors and admins. Requires auth token.",
+      "item": [
+        {
+          "name": "Create Manual Appointment (no payment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('appointment_id', res.data.id);",
+                  "  console.log('appointment_id set to:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Johnson\",\n  \"email\": \"alice.johnson@example.com\",\n  \"phone\": \"+61455556789\",\n  \"dateOfBirth\": \"1995-03-10\",\n  \"gender\": \"FEMALE\",\n  \"sessionType\": \"ONLINE\",\n  \"date\": \"2026-03-20\",\n  \"timeSlotId\": \"{{time_slot_id}}\",\n  \"serviceId\": \"{{service_id}}\",\n  \"notes\": \"Referred by GP for anxiety management\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"]
+            },
+            "description": "Creates a CONFIRMED appointment immediately (no payment required). serviceId optional but validates session_type match if provided.\n\nCounselor is derived from the auth token."
+          }
+        },
+        {
+          "name": "Create Manual Appointment (with payment link)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('appointment_id', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Bob\",\n  \"lastName\": \"Brown\",\n  \"email\": \"bob.brown@example.com\",\n  \"phone\": \"+61433334444\",\n  \"dateOfBirth\": \"1988-07-22\",\n  \"gender\": \"MALE\",\n  \"sessionType\": \"IN_PERSON\",\n  \"date\": \"2026-03-22\",\n  \"timeSlotId\": \"{{time_slot_id}}\",\n  \"serviceId\": \"{{service_id}}\",\n  \"notes\": \"Ongoing sessions for depression\",\n  \"amount\": 180.00,\n  \"currency\": \"AUD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments/with-payment",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "with-payment"]
+            },
+            "description": "Creates a CONFIRMED appointment with payment status YET_TO_PAY. Sends payment link to client by email.\n\n- If serviceId is provided: base_amount is taken from service, stripe_fee_amount = amount - base_amount\n- amount = total charged to client"
+          }
+        },
+        {
+          "name": "Get My Appointments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"]
+            },
+            "description": "Returns appointments for the logged-in counselor."
+          }
+        },
+        {
+          "name": "Get My Appointments (with filters)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments?session_type=ONLINE&status=CONFIRMED&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"],
+              "query": [
+                { "key": "session_type", "value": "ONLINE" },
+                { "key": "status", "value": "CONFIRMED" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Appointment Details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Mark Appointment Completed",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}/completed",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}", "completed"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Reschedule Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newTimeSlotId\": \"REPLACE_WITH_NEW_SLOT_ID\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}/reschedule",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}", "reschedule"]
+            }
+          }
+        },
+        {
+          "name": "Confirm Manual Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}/confirm-manual-payment",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}", "confirm-manual-payment"]
+            }
+          }
+        },
+        {
+          "name": "Mark Yet To Pay",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}/mark-yet-to-pay",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}", "mark-yet-to-pay"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Payments",
+      "description": "Payment intent creation. base_amount and stripe_fee_amount are now auto-derived from the appointment's linked service.",
+      "item": [
+        {
+          "name": "Create Payment Intent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has client_secret', () => pm.expect(res.data).to.have.property('client_secret'));",
+                  "if (res.data && res.data.payment_id) {",
+                  "  pm.collectionVariables.set('payment_id', res.data.payment_id);",
+                  "  console.log('payment_id set to:', res.data.payment_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointment_id\": \"{{appointment_id}}\",\n  \"amount\": 165.00,\n  \"currency\": \"AUD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/create-intent",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "create-intent"]
+            },
+            "description": "Creates a Stripe payment intent.\n\n**What happens with service_id:**\n- If the appointment has a linked service → base_amount is auto-read from service\n- stripe_fee_amount = amount - base_amount\n- Both stored on the payment record\n\n**amount** = total to charge client (base + Stripe fee)\n**Returns:** client_secret (pass to Stripe.js on frontend)"
+          }
+        },
+        {
+          "name": "Get Payment by Appointment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payments/appointment/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "appointment", "{{appointment_id}}"]
+            },
+            "description": "Returns payment record including base_amount and stripe_fee_amount fields."
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Validation Error Cases",
+      "description": "Test cases that should return 400/404/409 errors to confirm validation is working.",
+      "item": [
+        {
+          "name": "[400] Create Service — session_type mismatch",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"division_id\": \"{{division_id}}\",\n  \"name\": \"Test Session\",\n  \"session_type\": \"INVALID_TYPE\",\n  \"base_amount\": 100\n}"
+            },
+            "url": { "raw": "{{base_url}}/services", "host": ["{{base_url}}"], "path": ["services"] },
+            "description": "Expects 400 — invalid session_type value."
+          }
+        },
+        {
+          "name": "[409] Create Duplicate Division",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"COUNSELLING\",\n  \"description\": \"Duplicate division\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] },
+            "description": "Expects 409 Conflict — COUNSELLING division already exists."
+          }
+        },
+        {
+          "name": "[409] Assign Same Division Twice",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"division_id\": \"{{division_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions",
+              "host": ["{{base_url}}"],
+              "path": ["users", "counselors", "{{counselor_id}}", "divisions"]
+            },
+            "description": "Expects 409 Conflict — division already assigned to this counselor."
+          }
+        },
+        {
+          "name": "[400] Book with Inactive Service",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"test@example.com\",\n  \"phone\": \"+61400000000\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"gender\": \"OTHER\",\n  \"sessionType\": \"ONLINE\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{time_slot_id}}\",\n  \"counselorId\": \"{{counselor_id}}\",\n  \"serviceId\": \"REPLACE_WITH_INACTIVE_SERVICE_ID\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/public-appointments", "host": ["{{base_url}}"], "path": ["public-appointments"] },
+            "description": "Expects 400 — service is not active. Deactivate a service first using the Deactivate Service request."
+          }
+        },
+        {
+          "name": "[400] Book with Mismatched Service session_type",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"Mismatch\",\n  \"email\": \"mismatch@example.com\",\n  \"phone\": \"+61400000001\",\n  \"dateOfBirth\": \"1992-02-02\",\n  \"gender\": \"OTHER\",\n  \"sessionType\": \"IN_PERSON\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{time_slot_id}}\",\n  \"counselorId\": \"{{counselor_id}}\",\n  \"serviceId\": \"{{service_id}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/public-appointments", "host": ["{{base_url}}"], "path": ["public-appointments"] },
+            "description": "Expects 400 — service is ONLINE but appointment sessionType is IN_PERSON. service_id={{service_id}} must be an ONLINE service for this test to work."
+          }
+        },
+        {
+          "name": "[404] Get Non-existent Division",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/divisions/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["divisions", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Expects 404 Not Found."
+          }
+        },
+        {
+          "name": "[401] Access Private Route Without Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"LIFE_COACHING\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] },
+            "description": "Expects 401 Unauthorized — no Bearer token."
+          }
+        }
+      ]
+    }
+  ]
+}

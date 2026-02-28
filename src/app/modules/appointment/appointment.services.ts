@@ -711,6 +711,31 @@ const RescheduleAppointmentById = async (
   return updatedAppointment;
 };
 
+// Validates service_id if provided — returns the service record or null
+const validateServiceIfProvided = async (
+  serviceId: string | undefined,
+  sessionType: 'ONLINE' | 'IN_PERSON',
+) => {
+  if (!serviceId) return null;
+
+  const service = await prisma.service.findUnique({ where: { id: serviceId } });
+
+  if (!service) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Service not found');
+  }
+  if (!service.is_active) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Selected service is not active');
+  }
+  if (service.session_type !== sessionType) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Service session type (${service.session_type}) does not match appointment session type (${sessionType})`,
+    );
+  }
+
+  return service;
+};
+
 interface IManualAppointmentData {
   firstName: string;
   lastName: string;
@@ -722,6 +747,7 @@ interface IManualAppointmentData {
   date: string;
   timeSlotId: string;
   notes?: string;
+  serviceId?: string;
 }
 
 const CreateManualAppointment = async (
@@ -775,6 +801,9 @@ const CreateManualAppointment = async (
     );
   }
 
+  // Validate service if provided
+  await validateServiceIfProvided(data.serviceId, data.sessionType);
+
   // Create appointment in transaction
   const appointment = await prisma.$transaction(
     async (tx) => {
@@ -817,6 +846,7 @@ const CreateManualAppointment = async (
             session_type: data.sessionType,
             notes: data.notes || '',
             status: 'CONFIRMED',
+            ...(data.serviceId && { service_id: data.serviceId }),
           },
           include: {
             client: true,
@@ -1032,7 +1062,7 @@ const CreateManualAppointment = async (
 
 const CreateManualAppointmentWithPayment = async (
   counselorId: string,
-  data: IManualAppointmentData & { amount: number; currency?: string },
+  data: IManualAppointmentData & { amount: number; currency?: string; serviceId?: string },
 ) => {
   const TokenGenerator = (await import('../../utils/tokenGenerator')).default;
 
@@ -1083,6 +1113,11 @@ const CreateManualAppointmentWithPayment = async (
     );
   }
 
+  // Validate service if provided
+  const service = await validateServiceIfProvided(data.serviceId, data.sessionType);
+  const baseAmount = service ? Number(service.base_amount) : undefined;
+  const stripeFeeAmount = baseAmount !== undefined ? data.amount - baseAmount : undefined;
+
   // Generate payment token and expiry
   const paymentToken = TokenGenerator.generatePaymentToken();
   const paymentTokenExpiry = TokenGenerator.generateTokenExpiry(1440); // 2 months (60 days)
@@ -1132,12 +1167,15 @@ const CreateManualAppointmentWithPayment = async (
             status: 'CONFIRMED', // Confirmed immediately
             payment_token: paymentToken,
             payment_token_expiry: paymentTokenExpiry,
+            ...(data.serviceId && { service_id: data.serviceId }),
             payment: {
               create: {
                 client_id: client.id,
                 amount: data.amount,
                 currency: data.currency || 'AUD',
                 status: 'YET_TO_PAY', // Payment pending but appointment confirmed
+                ...(baseAmount !== undefined && { base_amount: baseAmount }),
+                ...(stripeFeeAmount !== undefined && { stripe_fee_amount: stripeFeeAmount }),
               },
             },
           },

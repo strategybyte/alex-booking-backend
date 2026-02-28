@@ -77,16 +77,24 @@ async function readCSV(filePath: string): Promise<any[]> {
 async function main() {
   console.log('🌱 Starting seed...');
 
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const adminName = process.env.SEED_ADMIN_NAME ?? 'Super Admin';
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set in .env');
+  }
+
   // Hash password for admin user
-  const hashedPassword = await bcrypt.hash('Alexande11!', 12);
+  const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
   // Create/get admin user
   const admin = await prisma.user.upsert({
-    where: { email: 'info@alexrodriguez.com.au' },
+    where: { email: adminEmail },
     update: {},
     create: {
-      name: 'Alexander Rodriguez',
-      email: 'info@alexrodriguez.com.au',
+      name: adminName,
+      email: adminEmail,
       password: hashedPassword,
       role: Role.SUPER_ADMIN,
       counselor_settings: {
@@ -194,9 +202,7 @@ async function main() {
 
   console.log('\n🎉 Seed completed successfully!');
   console.log('\n📝 Login Credentials:');
-  console.log(
-    'Super Admin - Email: info@alexrodriguez.com.au, Password: Alexande11!',
-  );
+  console.log(`Super Admin - Email: ${adminEmail}, Password: ${adminPassword}`);
 }
 
 main()

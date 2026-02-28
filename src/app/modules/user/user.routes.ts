@@ -41,6 +41,42 @@ router.patch(
   UserController.UpdateCounselor,
 );
 
+// Counselor division management
+router.get(
+  '/counselors/:counselorId/divisions',
+  auth(Role.SUPER_ADMIN),
+  UserController.GetCounselorDivisions,
+);
+router.post(
+  '/counselors/:counselorId/divisions',
+  auth(Role.SUPER_ADMIN),
+  validateRequest(UserValidation.assignDivisionSchema),
+  UserController.AssignDivision,
+);
+router.delete(
+  '/counselors/:counselorId/divisions/:divisionId',
+  auth(Role.SUPER_ADMIN),
+  UserController.RemoveDivision,
+);
+
+// Counselor service management
+router.get(
+  '/counselors/:counselorId/services',
+  auth(Role.SUPER_ADMIN),
+  UserController.GetCounselorServices,
+);
+router.post(
+  '/counselors/:counselorId/services',
+  auth(Role.SUPER_ADMIN),
+  validateRequest(UserValidation.assignServiceSchema),
+  UserController.AssignService,
+);
+router.delete(
+  '/counselors/:counselorId/services/:serviceId',
+  auth(Role.SUPER_ADMIN),
+  UserController.RemoveService,
+);
+
 // Routes that require SUPER_ADMIN or COUNSELOR access
 router.use(auth(Role.SUPER_ADMIN, Role.COUNSELOR));
 

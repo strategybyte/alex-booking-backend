@@ -74,11 +74,35 @@ const updateCounselorSchema = z.object({
   ),
 });
 
+const assignDivisionSchema = z.object({
+  params: z.object({
+    counselorId: z.string().uuid('Invalid counselor ID format'),
+  }),
+  body: z.object({
+    division_id: z.string().uuid('Invalid division ID format'),
+  }),
+  query: z.object({}).optional(),
+  cookies: z.object({}).optional(),
+});
+
+const assignServiceSchema = z.object({
+  params: z.object({
+    counselorId: z.string().uuid('Invalid counselor ID format'),
+  }),
+  body: z.object({
+    service_id: z.string().uuid('Invalid service ID format'),
+  }),
+  query: z.object({}).optional(),
+  cookies: z.object({}).optional(),
+});
+
 const UserValidation = {
   updateProfileSchema,
   createCounselorSchema,
   updateCounselorSettingsSchema,
   updateCounselorSchema,
+  assignDivisionSchema,
+  assignServiceSchema,
 };
 
 export default UserValidation;

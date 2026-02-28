@@ -69,6 +69,12 @@ enum MeetingPlatform {
   ZOOM
 }
 
+enum DivisionType {
+  ALLIED_HEALTH
+  LIFE_COACHING
+  COUNSELLING
+}
+
 model User {
   id                         String    @id @default(uuid())
   name                       String
@@ -103,6 +109,8 @@ model User {
   counselor_settings     CounselorSettings?
   counselor_clients      CounselorClient[]
   password_reset_tokens  PasswordResetToken[]
+  user_divisions         UserDivision[]
+  user_services          UserService[]
 
   @@map("users")
 }
@@ -230,6 +238,7 @@ model Appointment {
   event_id             String? // Google Calendar event ID
   payment_token        String?           @unique // For manual booking payment links
   payment_token_expiry DateTime? // Token expiration (24 hours)
+  service_id           String?
   created_at           DateTime          @default(now())
   updated_at           DateTime          @updatedAt
 
@@ -237,6 +246,7 @@ model Appointment {
   client    Client   @relation(fields: [client_id], references: [id], onDelete: Restrict)
   counselor User     @relation(fields: [counselor_id], references: [id], onDelete: Restrict)
   time_slot TimeSlot @relation(fields: [time_slot_id], references: [id], onDelete: Cascade)
+  service   Service? @relation(fields: [service_id], references: [id])
   payment   Payment?
   meeting   Meeting?
 
@@ -271,6 +281,8 @@ model Payment {
   payment_method       String?
   transaction_id       String?       @unique
   payment_gateway_data Json?
+  base_amount          Decimal?      @db.Decimal(10, 2)
+  stripe_fee_amount    Decimal?      @db.Decimal(10, 2)
   refund_amount        Decimal?      @db.Decimal(10, 2)
   refund_reason        String?
   processed_at         DateTime?
@@ -353,6 +365,71 @@ model PayoutRequest {
   @@index([status])
   @@index([requested_at])
   @@map("payout_requests")
+}
+
+model Division {
+  id          String       @id @default(uuid())
+  type        DivisionType @unique
+  description String?
+  is_active   Boolean      @default(true)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  services       Service[]
+  user_divisions UserDivision[]
+
+  @@map("divisions")
+}
+
+model Service {
+  id           String      @id @default(uuid())
+  division_id  String
+  name         String
+  description  String?
+  session_type SessionType
+  base_amount  Decimal     @db.Decimal(10, 2)
+  currency     String      @default("AUD") @db.VarChar(3)
+  is_active    Boolean     @default(true)
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  division      Division      @relation(fields: [division_id], references: [id], onDelete: Cascade)
+  user_services UserService[]
+  appointments  Appointment[]
+
+  @@unique([division_id, name, session_type])
+  @@index([division_id])
+  @@map("services")
+}
+
+model UserDivision {
+  id          String   @id @default(uuid())
+  user_id     String
+  division_id String
+  created_at  DateTime @default(now())
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [division_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, division_id])
+  @@index([user_id])
+  @@index([division_id])
+  @@map("user_divisions")
+}
+
+model UserService {
+  id         String   @id @default(uuid())
+  user_id    String
+  service_id String
+  created_at DateTime @default(now())
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, service_id])
+  @@index([user_id])
+  @@index([service_id])
+  @@map("user_services")
 }
 
 model BalanceTransaction {

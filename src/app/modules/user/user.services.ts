@@ -590,6 +590,128 @@ const GetAllUsers = async (
   };
 };
 
+const GetCounselorDivisions = async (counselorId: string) => {
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId, is_deleted: false },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  return prisma.userDivision.findMany({
+    where: { user_id: counselorId },
+    include: { division: true },
+    orderBy: { created_at: 'asc' },
+  });
+};
+
+const AssignDivision = async (counselorId: string, divisionId: string) => {
+  const [counselor, division] = await Promise.all([
+    prisma.user.findUnique({ where: { id: counselorId, is_deleted: false } }),
+    prisma.division.findUnique({ where: { id: divisionId } }),
+  ]);
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+  if (!division) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Division not found');
+  }
+
+  const existing = await prisma.userDivision.findUnique({
+    where: { user_id_division_id: { user_id: counselorId, division_id: divisionId } },
+  });
+
+  if (existing) {
+    throw new AppError(httpStatus.CONFLICT, 'Division already assigned to this counselor');
+  }
+
+  return prisma.userDivision.create({
+    data: { user_id: counselorId, division_id: divisionId },
+    include: { division: true },
+  });
+};
+
+const RemoveDivision = async (counselorId: string, divisionId: string) => {
+  const record = await prisma.userDivision.findUnique({
+    where: { user_id_division_id: { user_id: counselorId, division_id: divisionId } },
+  });
+
+  if (!record) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Division not assigned to this counselor');
+  }
+
+  await prisma.userDivision.delete({
+    where: { user_id_division_id: { user_id: counselorId, division_id: divisionId } },
+  });
+};
+
+const GetCounselorServices = async (counselorId: string) => {
+  const counselor = await prisma.user.findUnique({
+    where: { id: counselorId, is_deleted: false },
+  });
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+
+  return prisma.userService.findMany({
+    where: { user_id: counselorId },
+    include: {
+      service: {
+        include: { division: { select: { id: true, type: true } } },
+      },
+    },
+    orderBy: { created_at: 'asc' },
+  });
+};
+
+const AssignService = async (counselorId: string, serviceId: string) => {
+  const [counselor, service] = await Promise.all([
+    prisma.user.findUnique({ where: { id: counselorId, is_deleted: false } }),
+    prisma.service.findUnique({ where: { id: serviceId } }),
+  ]);
+
+  if (!counselor) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Counselor not found');
+  }
+  if (!service) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Service not found');
+  }
+
+  const existing = await prisma.userService.findUnique({
+    where: { user_id_service_id: { user_id: counselorId, service_id: serviceId } },
+  });
+
+  if (existing) {
+    throw new AppError(httpStatus.CONFLICT, 'Service already assigned to this counselor');
+  }
+
+  return prisma.userService.create({
+    data: { user_id: counselorId, service_id: serviceId },
+    include: {
+      service: {
+        include: { division: { select: { id: true, type: true } } },
+      },
+    },
+  });
+};
+
+const RemoveService = async (counselorId: string, serviceId: string) => {
+  const record = await prisma.userService.findUnique({
+    where: { user_id_service_id: { user_id: counselorId, service_id: serviceId } },
+  });
+
+  if (!record) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Service not assigned to this counselor');
+  }
+
+  await prisma.userService.delete({
+    where: { user_id_service_id: { user_id: counselorId, service_id: serviceId } },
+  });
+};
+
 export const UserService = {
   UpdateProfilePicture,
   UpdateUserProfile,
@@ -599,4 +721,10 @@ export const UserService = {
   UpdateCounselorSettings,
   UpdateCounselor,
   GetAllUsers,
+  GetCounselorDivisions,
+  AssignDivision,
+  RemoveDivision,
+  GetCounselorServices,
+  AssignService,
+  RemoveService,
 };

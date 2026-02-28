@@ -14,6 +14,8 @@ import { BalanceRoutes } from '../modules/balance/balance.routes';
 import { PayoutRoutes } from '../modules/payout/payout.routes';
 import { StripeRoutes } from '../modules/stripe/stripe.routes';
 import { DashboardRoutes } from '../modules/dashboard/dashboard.routes';
+import { DivisionRoutes } from '../modules/division/division.routes';
+import { ServiceRoutes } from '../modules/service/service.routes';
 
 const router = express.Router();
 
@@ -35,6 +37,8 @@ const routes: Route[] = [
   { path: '/payouts', route: PayoutRoutes },
   { path: '/stripe', route: StripeRoutes },
   { path: '/dashboard', route: DashboardRoutes },
+  { path: '/divisions', route: DivisionRoutes },
+  { path: '/services', route: ServiceRoutes },
 ];
 
 routes.forEach((route) => {

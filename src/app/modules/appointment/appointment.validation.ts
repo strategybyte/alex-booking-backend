@@ -83,6 +83,7 @@ const createManualAppointmentSchema = z.object({
       required_error: 'Time slot ID is required',
     }),
     notes: z.string().optional(),
+    serviceId: z.string().uuid('Invalid service ID format').optional(),
   }),
   query: z.object({}).optional(),
   params: z.object({}).optional(),
@@ -121,6 +122,7 @@ const createManualAppointmentWithPaymentSchema = z.object({
       required_error: 'Time slot ID is required',
     }),
     notes: z.string().optional(),
+    serviceId: z.string().uuid('Invalid service ID format').optional(),
     amount: z.number({
       required_error: 'Payment amount is required',
     }).positive('Amount must be positive'),

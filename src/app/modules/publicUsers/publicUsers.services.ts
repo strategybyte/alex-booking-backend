@@ -1,13 +1,28 @@
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import prisma from '../../utils/prisma';
 
-const GetPublicCounselors = async () => {
+interface IPublicCounselorFilters {
+  service_id?: string;
+  division_id?: string;
+}
+
+const GetPublicCounselors = async (filters: IPublicCounselorFilters = {}) => {
+  const where: Prisma.UserWhereInput = {
+    OR: [{ role: Role.SUPER_ADMIN }, { role: Role.COUNSELOR }],
+    is_deleted: false,
+  };
+
+  if (filters.service_id) {
+    where.user_services = { some: { service_id: filters.service_id } };
+  }
+
+  if (filters.division_id) {
+    where.user_divisions = { some: { division_id: filters.division_id } };
+  }
+
   // Get all counselors and super admin
   const counselors = await prisma.user.findMany({
-    where: {
-      OR: [{ role: Role.SUPER_ADMIN }, { role: Role.COUNSELOR }],
-      is_deleted: false,
-    },
+    where,
     select: {
       id: true,
       name: true,
@@ -95,5 +110,6 @@ const GetPublicCounselors = async () => {
 const PublicUsersService = {
   GetPublicCounselors,
 };
+export type { IPublicCounselorFilters };
 
 export default PublicUsersService;

@@ -88,6 +88,7 @@ interface IAppointmentData {
   time_slot_id: string;
   notes: string;
   counselor_id: string;
+  service_id?: string;
 }
 
 const CreateAppointment = async (
@@ -114,6 +115,26 @@ const CreateAppointment = async (
       httpStatus.UNPROCESSABLE_ENTITY,
       'Slot is not available.',
     );
+  }
+
+  // Validate service_id if provided
+  if (appointmentData.service_id) {
+    const service = await prisma.service.findUnique({
+      where: { id: appointmentData.service_id },
+    });
+
+    if (!service) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Service not found');
+    }
+    if (!service.is_active) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Selected service is not active');
+    }
+    if (service.session_type !== appointmentData.session_type) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Service session type (${service.session_type}) does not match appointment session type (${appointmentData.session_type})`,
+      );
+    }
   }
 
   // Verify the session type matches the slot type
@@ -182,6 +203,7 @@ const CreateAppointment = async (
                   session_type: appointmentData.session_type,
                   notes: appointmentData.notes,
                   status: 'PENDING',
+                  ...(appointmentData.service_id && { service_id: appointmentData.service_id }),
                 },
                 include: {
                   client: true,

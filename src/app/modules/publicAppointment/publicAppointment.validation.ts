@@ -33,6 +33,7 @@ const createPublicAppointmentZodSchema = z.object({
     counselorId: z.string({
       required_error: 'Counselor ID is required',
     }),
+    serviceId: z.string().uuid('Invalid service ID format').optional(),
   }),
 });
 

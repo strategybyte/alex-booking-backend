@@ -22,6 +22,7 @@ const PostAppointment = catchAsync(async (req, res) => {
     time_slot_id: data.timeSlotId,
     notes: data.notes || 'N/A',
     counselor_id: data.counselorId,
+    service_id: data.serviceId,
   };
 
   const result = await PublicAppointmentService.CreateAppointment(

@@ -52,7 +52,10 @@ const createPaymentIntent = async (
   // Get appointment details
   const appointment = await prisma.appointment.findUnique({
     where: { id: data.appointment_id },
-    include: { client: true },
+    include: {
+      client: true,
+      service: true,
+    },
   });
 
   if (!appointment) {
@@ -93,6 +96,11 @@ const createPaymentIntent = async (
 
   const currency = data.currency || 'AUD';
   const amountInCents = dollarsToCents(data.amount);
+  const baseAmount = appointment.service
+    ? Number(appointment.service.base_amount)
+    : undefined;
+  const stripeFeeAmount =
+    baseAmount !== undefined ? data.amount - baseAmount : undefined;
 
   try {
     // Create Stripe payment intent
@@ -121,6 +129,8 @@ const createPaymentIntent = async (
           payment_method: 'stripe',
           transaction_id: paymentIntent.id,
           payment_gateway_data: {}, // Reset gateway data for new payment intent
+          ...(baseAmount !== undefined && { base_amount: baseAmount }),
+          ...(stripeFeeAmount !== undefined && { stripe_fee_amount: stripeFeeAmount }),
         },
       });
     } else {
@@ -134,6 +144,8 @@ const createPaymentIntent = async (
           status: 'PENDING' as PaymentStatus,
           payment_method: 'stripe',
           transaction_id: paymentIntent.id,
+          ...(baseAmount !== undefined && { base_amount: baseAmount }),
+          ...(stripeFeeAmount !== undefined && { stripe_fee_amount: stripeFeeAmount }),
         },
       });
     }
