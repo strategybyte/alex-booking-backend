@@ -1,0 +1,1206 @@
+{
+  "info": {
+    "name": "Alex Booking Backend - Complete API",
+    "_postman_id": "alex-booking-backend-complete",
+    "description": "Complete API collection for Alex Booking Backend. Base URL: {{base_url}} = http://localhost:5000/api/v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
+    { "key": "counselor_token", "value": "", "type": "string" },
+    { "key": "counselor_id", "value": "", "type": "string" },
+    { "key": "appointment_id", "value": "", "type": "string" },
+    { "key": "client_id", "value": "", "type": "string" },
+    { "key": "division_id", "value": "", "type": "string" },
+    { "key": "service_id", "value": "", "type": "string" },
+    { "key": "calendar_id", "value": "", "type": "string" },
+    { "key": "slot_id", "value": "", "type": "string" },
+    { "key": "payout_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('admin_token', res.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth", "forgot-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/reset-password", "host": ["{{base_url}}"], "path": ["auth", "reset-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset_token_here\",\n  \"new_password\": \"newpassword123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/auth/change-password", "host": ["{{base_url}}"], "path": ["auth", "change-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"password123\",\n  \"new_password\": \"newpassword123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/auth/profile", "host": ["{{base_url}}"], "path": ["auth", "profile"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Updated Name", "type": "text" },
+                { "key": "specialization", "value": "Psychology", "type": "text" },
+                { "key": "profile_picture", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Profile Picture",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/auth/profile-picture", "host": ["{{base_url}}"], "path": ["auth", "profile-picture"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create Counselor",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/create-counselor", "host": ["{{base_url}}"], "path": ["users", "create-counselor"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"specialization\": \"Psychology\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Counselors",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors", "host": ["{{base_url}}"], "path": ["users", "counselors"] }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/all-users", "host": ["{{base_url}}"], "path": ["users", "all-users"] }
+          }
+        },
+        {
+          "name": "Get Counselor By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}"] }
+          }
+        },
+        {
+          "name": "Update Counselor Settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/settings", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "settings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minimum_slots_per_day\": 5,\n  \"approved_by_admin\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Counselor",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Jane Updated\",\n  \"specialization\": \"Clinical Psychology\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Counselor Divisions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "divisions"] }
+          }
+        },
+        {
+          "name": "Assign Division to Counselor",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "divisions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"division_id\": \"{{division_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Division from Counselor",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/divisions/{{division_id}}", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "divisions", "{{division_id}}"] }
+          }
+        },
+        {
+          "name": "Get Counselor Services",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/services", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "services"] }
+          }
+        },
+        {
+          "name": "Assign Service to Counselor",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/services", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "services"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_id\": \"{{service_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Service from Counselor",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/users/counselors/{{counselor_id}}/services/{{service_id}}", "host": ["{{base_url}}"], "path": ["users", "counselors", "{{counselor_id}}", "services", "{{service_id}}"] }
+          }
+        },
+        {
+          "name": "Update Profile (User)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/profile", "host": ["{{base_url}}"], "path": ["users", "profile"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Counselor Name\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/users/profile/picture", "host": ["{{base_url}}"], "path": ["users", "profile", "picture"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calendar",
+      "item": [
+        {
+          "name": "Get Calendar",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/calendars", "host": ["{{base_url}}"], "path": ["calendars"] }
+          }
+        },
+        {
+          "name": "Post Calendar Date",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/calendars", "host": ["{{base_url}}"], "path": ["calendars"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-03-15T00:00:00.000Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Slots With Calendar Date",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/calendars/slots", "host": ["{{base_url}}"], "path": ["calendars", "slots"] }
+          }
+        },
+        {
+          "name": "Post Slots With Calendar Date (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/calendars/slots", "host": ["{{base_url}}"], "path": ["calendars", "slots"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-03-15\",\n  \"slots\": [\n    { \"start_time\": \"09:00\", \"end_time\": \"10:00\", \"type\": \"ONLINE\" },\n    { \"start_time\": \"10:00\", \"end_time\": \"11:00\", \"type\": \"IN_PERSON\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Date Slots",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/calendars/{{calendar_id}}/slots", "host": ["{{base_url}}"], "path": ["calendars", "{{calendar_id}}", "slots"] }
+          }
+        },
+        {
+          "name": "Post Date Slots",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/calendars/{{calendar_id}}/slots", "host": ["{{base_url}}"], "path": ["calendars", "{{calendar_id}}", "slots"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": [\n    { \"start_time\": \"09:00\", \"end_time\": \"10:00\", \"type\": \"ONLINE\" },\n    { \"start_time\": \"11:00\", \"end_time\": \"12:00\", \"type\": \"IN_PERSON\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Time Slot",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/calendars/slots/{{slot_id}}", "host": ["{{base_url}}"], "path": ["calendars", "slots", "{{slot_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "Get All Clients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/clients?search=john&gender=MALE&page=1&limit=10&sort_by=first_name&sort_order=asc",
+              "host": ["{{base_url}}"],
+              "path": ["clients"],
+              "query": [
+                { "key": "search", "value": "john", "disabled": true },
+                { "key": "gender", "value": "MALE", "disabled": true },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sort_by", "value": "first_name", "disabled": true },
+                { "key": "sort_order", "value": "asc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Client Details With History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/clients/{{client_id}}", "host": ["{{base_url}}"], "path": ["clients", "{{client_id}}"] }
+          }
+        },
+        {
+          "name": "Update Client",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/clients/{{client_id}}", "host": ["{{base_url}}"], "path": ["clients", "{{client_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"gender\": \"MALE\",\n  \"date_of_birth\": \"1990-01-15T00:00:00.000Z\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "Get Counselor Appointments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/appointments?search=john&status=CONFIRMED&session_type=ONLINE&date=2026-03-15&page=1&limit=10&sort_by=date&sort_order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"],
+              "query": [
+                { "key": "search", "value": "john", "disabled": true },
+                { "key": "status", "value": "CONFIRMED", "disabled": true },
+                { "key": "session_type", "value": "ONLINE", "disabled": true },
+                { "key": "date", "value": "2026-03-15", "disabled": true },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sort_by", "value": "date", "disabled": true },
+                { "key": "sort_order", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Manual Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/appointments", "host": ["{{base_url}}"], "path": ["appointments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"gender\": \"MALE\",\n  \"sessionType\": \"ONLINE\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{slot_id}}\",\n  \"notes\": \"Patient notes here\",\n  \"serviceId\": \"{{service_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Manual Appointment With Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/appointments/with-payment", "host": ["{{base_url}}"], "path": ["appointments", "with-payment"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"gender\": \"MALE\",\n  \"sessionType\": \"ONLINE\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{slot_id}}\",\n  \"notes\": \"Patient notes here\",\n  \"serviceId\": \"{{service_id}}\",\n  \"amount\": 150.00,\n  \"currency\": \"aud\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Appointment By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/appointments/{{appointment_id}}", "host": ["{{base_url}}"], "path": ["appointments", "{{appointment_id}}"] }
+          }
+        },
+        {
+          "name": "Complete Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/appointments/{{appointment_id}}/completed", "host": ["{{base_url}}"], "path": ["appointments", "{{appointment_id}}", "completed"] }
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/appointments/{{appointment_id}}/cancel", "host": ["{{base_url}}"], "path": ["appointments", "{{appointment_id}}", "cancel"] }
+          }
+        },
+        {
+          "name": "Reschedule Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/appointments/{{appointment_id}}/reschedule", "host": ["{{base_url}}"], "path": ["appointments", "{{appointment_id}}", "reschedule"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newTimeSlotId\": \"{{slot_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Confirm Manual Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/appointments/{{appointment_id}}/confirm-manual-payment", "host": ["{{base_url}}"], "path": ["appointments", "{{appointment_id}}", "confirm-manual-payment"] }
+          }
+        },
+        {
+          "name": "Mark Yet To Pay",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/appointments/{{appointment_id}}/mark-yet-to-pay", "host": ["{{base_url}}"], "path": ["appointments", "{{appointment_id}}", "mark-yet-to-pay"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Calendar",
+      "item": [
+        {
+          "name": "Check Counselors Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-calenders/check-availability?datetime=2026-03-15 09:00:00 UTC&timezone=Australia/Sydney",
+              "host": ["{{base_url}}"],
+              "path": ["public-calenders", "check-availability"],
+              "query": [
+                { "key": "datetime", "value": "2026-03-15 09:00:00 UTC" },
+                { "key": "timezone", "value": "Australia/Sydney" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Counselor Date Slots (by Calendar ID)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-calenders/slots/{{calendar_id}}?type=ONLINE",
+              "host": ["{{base_url}}"],
+              "path": ["public-calenders", "slots", "{{calendar_id}}"],
+              "query": [
+                { "key": "type", "value": "ONLINE", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Counselor Calendar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/public-calenders/{{counselor_id}}", "host": ["{{base_url}}"], "path": ["public-calenders", "{{counselor_id}}"] }
+          }
+        },
+        {
+          "name": "Get Counselor Date Slots (by Date)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/public-calenders/{{counselor_id}}/slots/2026-03-15", "host": ["{{base_url}}"], "path": ["public-calenders", "{{counselor_id}}", "slots", "2026-03-15"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Appointments",
+      "item": [
+        {
+          "name": "Create Public Appointment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/public-appointments", "host": ["{{base_url}}"], "path": ["public-appointments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"email\": \"jane@example.com\",\n  \"phone\": \"+1234567890\",\n  \"dateOfBirth\": \"1995-06-20\",\n  \"gender\": \"FEMALE\",\n  \"sessionType\": \"ONLINE\",\n  \"date\": \"2026-03-15\",\n  \"timeSlotId\": \"{{slot_id}}\",\n  \"counselorId\": \"{{counselor_id}}\",\n  \"notes\": \"First appointment\",\n  \"serviceId\": \"{{service_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Appointment By Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-appointments/by-token?token=payment_token_here",
+              "host": ["{{base_url}}"],
+              "path": ["public-appointments", "by-token"],
+              "query": [
+                { "key": "token", "value": "payment_token_here" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Public Appointment By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/public-appointments/{{appointment_id}}", "host": ["{{base_url}}"], "path": ["public-appointments", "{{appointment_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Users",
+      "item": [
+        {
+          "name": "Get Public Counselors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public-users/counselors?service_id={{service_id}}&division_id={{division_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["public-users", "counselors"],
+              "query": [
+                { "key": "service_id", "value": "{{service_id}}", "disabled": true },
+                { "key": "division_id", "value": "{{division_id}}", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "OTP Verification",
+      "item": [
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/otp/send", "host": ["{{base_url}}"], "path": ["otp", "send"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/otp/verify", "host": ["{{base_url}}"], "path": ["otp", "verify"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment Intent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/payments/create-intent", "host": ["{{base_url}}"], "path": ["payments", "create-intent"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointment_id\": \"{{appointment_id}}\",\n  \"amount\": 150,\n  \"currency\": \"aud\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Payment By Appointment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/payments/appointment/{{appointment_id}}", "host": ["{{base_url}}"], "path": ["payments", "appointment", "{{appointment_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google Calendar",
+      "item": [
+        {
+          "name": "Get Google Auth URL",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/google/auth-url", "host": ["{{base_url}}"], "path": ["google", "auth-url"] }
+          }
+        },
+        {
+          "name": "Google OAuth Callback",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/google/callback?code=auth_code_here&state=state_here",
+              "host": ["{{base_url}}"],
+              "path": ["google", "callback"],
+              "query": [
+                { "key": "code", "value": "auth_code_here" },
+                { "key": "state", "value": "state_here" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Google Calendar Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/google/status", "host": ["{{base_url}}"], "path": ["google", "status"] }
+          }
+        },
+        {
+          "name": "Debug Google Data",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/google/debug", "host": ["{{base_url}}"], "path": ["google", "debug"] }
+          }
+        },
+        {
+          "name": "Refresh Google Account Info",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/google/refresh-account-info", "host": ["{{base_url}}"], "path": ["google", "refresh-account-info"] }
+          }
+        },
+        {
+          "name": "Disconnect Google Calendar",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/google/disconnect", "host": ["{{base_url}}"], "path": ["google", "disconnect"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Balance",
+      "item": [
+        {
+          "name": "Get My Balance (Counselor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/balance/my-balance", "host": ["{{base_url}}"], "path": ["balance", "my-balance"] }
+          }
+        },
+        {
+          "name": "Get My Balance Transactions (Counselor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/balance/my-transactions?page=1&limit=10&sort_by=created_at&sort_order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["balance", "my-transactions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sort_by", "value": "created_at", "disabled": true },
+                { "key": "sort_order", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Counsellor Balances (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/balance/all?page=1&limit=10&sort_by=current_balance&sort_order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["balance", "all"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sort_by", "value": "current_balance", "disabled": true },
+                { "key": "sort_order", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Counsellor Balance (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/balance/{{counselor_id}}", "host": ["{{base_url}}"], "path": ["balance", "{{counselor_id}}"] }
+          }
+        },
+        {
+          "name": "Get Counsellor Balance Transactions (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/balance/{{counselor_id}}/transactions?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["balance", "{{counselor_id}}", "transactions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Adjust Balance (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/balance/{{counselor_id}}/adjust", "host": ["{{base_url}}"], "path": ["balance", "{{counselor_id}}", "adjust"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50.00,\n  \"description\": \"Manual balance adjustment\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Set Balance Values (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/balance/{{counselor_id}}/set-values", "host": ["{{base_url}}"], "path": ["balance", "{{counselor_id}}", "set-values"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_balance\": 500.00,\n  \"total_earned\": 1000.00,\n  \"total_withdrawn\": 500.00\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payouts",
+      "item": [
+        {
+          "name": "Create Payout Request (Counselor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counselor_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/payouts/request", "host": ["{{base_url}}"], "path": ["payouts", "request"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 200.00,\n  \"notes\": \"Monthly withdrawal\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get My Payout Requests (Counselor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/payouts/my-requests?page=1&limit=10&status=PENDING&sort_by=requested_at&sort_order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["payouts", "my-requests"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "PENDING", "disabled": true },
+                { "key": "sort_by", "value": "requested_at", "disabled": true },
+                { "key": "sort_order", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Payout Requests (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/payouts/all?page=1&limit=10&status=PENDING&sort_by=requested_at&sort_order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["payouts", "all"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "PENDING", "disabled": true },
+                { "key": "sort_by", "value": "requested_at", "disabled": true },
+                { "key": "sort_order", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Payout Request By ID (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/payouts/{{payout_id}}", "host": ["{{base_url}}"], "path": ["payouts", "{{payout_id}}"] }
+          }
+        },
+        {
+          "name": "Get Counsellor Payout Requests (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/payouts/counsellor/{{counselor_id}}?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["payouts", "counsellor", "{{counselor_id}}"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Process Payout Request (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/payouts/{{payout_id}}/process", "host": ["{{base_url}}"], "path": ["payouts", "{{payout_id}}", "process"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Execute Payout (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/payouts/{{payout_id}}/execute", "host": ["{{base_url}}"], "path": ["payouts", "{{payout_id}}", "execute"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stripe",
+      "item": [
+        {
+          "name": "Create Stripe Connect Account (Counselor)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/connect/create", "host": ["{{base_url}}"], "path": ["stripe", "connect", "create"] }
+          }
+        },
+        {
+          "name": "Create Account Link (Counselor)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/connect/account-link", "host": ["{{base_url}}"], "path": ["stripe", "connect", "account-link"] }
+          }
+        },
+        {
+          "name": "Refresh Account Status (Counselor)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/connect/refresh", "host": ["{{base_url}}"], "path": ["stripe", "connect", "refresh"] }
+          }
+        },
+        {
+          "name": "Create Login Link (Counselor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/connect/login-link", "host": ["{{base_url}}"], "path": ["stripe", "connect", "login-link"] }
+          }
+        },
+        {
+          "name": "Disconnect Stripe Account (Counselor)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/connect/disconnect", "host": ["{{base_url}}"], "path": ["stripe", "connect", "disconnect"] }
+          }
+        },
+        {
+          "name": "Get Stripe Account Status (Counselor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/status", "host": ["{{base_url}}"], "path": ["stripe", "status"] }
+          }
+        },
+        {
+          "name": "Get Stripe Account Details (Counselor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/details", "host": ["{{base_url}}"], "path": ["stripe", "details"] }
+          }
+        },
+        {
+          "name": "Get Counsellor Stripe Status (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/counsellor/{{counselor_id}}/status", "host": ["{{base_url}}"], "path": ["stripe", "counsellor", "{{counselor_id}}", "status"] }
+          }
+        },
+        {
+          "name": "Get Counsellor Stripe Details (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/stripe/counsellor/{{counselor_id}}/details", "host": ["{{base_url}}"], "path": ["stripe", "counsellor", "{{counselor_id}}", "details"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counselor_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/dashboard?date=2026-03-15",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard"],
+              "query": [
+                { "key": "date", "value": "2026-03-15", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Divisions",
+      "item": [
+        {
+          "name": "Get All Divisions (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] }
+          }
+        },
+        {
+          "name": "Get Division By ID (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/divisions/{{division_id}}", "host": ["{{base_url}}"], "path": ["divisions", "{{division_id}}"] }
+          }
+        },
+        {
+          "name": "Create Division (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/divisions", "host": ["{{base_url}}"], "path": ["divisions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"ALLIED_HEALTH\",\n  \"description\": \"Allied health services including physiotherapy and occupational therapy\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Division (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/divisions/{{division_id}}", "host": ["{{base_url}}"], "path": ["divisions", "{{division_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description for allied health\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Division (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/divisions/{{division_id}}", "host": ["{{base_url}}"], "path": ["divisions", "{{division_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "Get All Services (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services?division_id={{division_id}}&session_type=ONLINE&min_price=50&max_price=300&is_active=true",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [
+                { "key": "division_id", "value": "{{division_id}}", "disabled": true },
+                { "key": "session_type", "value": "ONLINE", "disabled": true },
+                { "key": "min_price", "value": "50", "disabled": true },
+                { "key": "max_price", "value": "300", "disabled": true },
+                { "key": "is_active", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Service By ID (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/services/{{service_id}}", "host": ["{{base_url}}"], "path": ["services", "{{service_id}}"] }
+          }
+        },
+        {
+          "name": "Create Service (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/services", "host": ["{{base_url}}"], "path": ["services"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"division_id\": \"{{division_id}}\",\n  \"name\": \"Individual Counselling Session\",\n  \"description\": \"One-on-one counselling session\",\n  \"session_type\": \"ONLINE\",\n  \"base_amount\": 150.00,\n  \"currency\": \"aud\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Service (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/services/{{service_id}}", "host": ["{{base_url}}"], "path": ["services", "{{service_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Service Name\",\n  \"description\": \"Updated description\",\n  \"session_type\": \"IN_PERSON\",\n  \"base_amount\": 175.00,\n  \"currency\": \"aud\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Service (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": { "raw": "{{base_url}}/services/{{service_id}}", "host": ["{{base_url}}"], "path": ["services", "{{service_id}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}
